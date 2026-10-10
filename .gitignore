@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data never goes in git (see data/README.md)
+data/raw/*
+data/interim/*
+data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Experiment outputs (keep summaries only)
+results/*
+!results/.gitkeep
+!results/**/summary*.csv
+!results/**/summary*.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

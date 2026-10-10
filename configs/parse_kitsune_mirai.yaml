@@ -1,0 +1,14 @@
+# Phase 1a: parse one capture into a per-device packet table.
+# Run:  python -m rad.features.parse --config configs/parse_kitsune_mirai.yaml
+#
+# 1. Put the capture in data/raw/ (see data/README.md).
+# 2. Find the device's MAC:  python -m rad.features.parse --list-devices data/raw/<file>
+# 3. Fill in target_mac below and run.
+
+input: data/raw/kitsune+network+attack+dataset/mirai/Mirai_pcap.pcap.gz   # .pcap / .pcapng, optionally .gz
+device_name: kitsune_mirai_device       # output: data/interim/<device_name>.parquet
+target_mac: "3c:33:00:98:ee:fd"         # 192.168.2.110, the Mirai-infected device (sends ~552k ARP scan frames after t≈4458 s)
+target_ip: null                         # optional fallback when MACs are unusable (raw-IP / SLL captures)
+out_dir: data/interim
+chunk_size: 100000                      # rows per parquet write; bounds memory
+max_packets: null                       # e.g. 50000 for a quick look
