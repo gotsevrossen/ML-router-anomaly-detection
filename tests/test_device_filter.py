@@ -7,6 +7,7 @@ from conftest import (
     DEVICE_IP,
     DEVICE_MAC,
     IDX_DNS_NX,
+    IDX_ARP,
     IDX_DNS_Q,
     IDX_IPV6_MDNS,
     IDX_SYN,
@@ -42,6 +43,8 @@ def test_direction_and_peer(pcap_path):
     assert (recs[IDX_DNS_NX].direction, recs[IDX_DNS_NX].peer_ip) == ("in", ROUTER_IP)
     assert (recs[IDX_IPV6_MDNS].direction, recs[IDX_IPV6_MDNS].peer_is_lan) == ("out", True)
     assert (recs[IDX_VLAN_TELNET].direction, recs[IDX_VLAN_TELNET].peer_ip) == ("out", "203.0.113.5")
+    # ARP to the broadcast MAC: the peer is the IP being asked about.
+    assert (recs[IDX_ARP].direction, recs[IDX_ARP].peer_ip, recs[IDX_ARP].peer_is_lan) == ("out", ROUTER_IP, True)
 
 
 def test_target_ip_fallback(pcap_path):
@@ -75,7 +78,7 @@ def test_list_devices_counts(pcap_path):
     # Broadcast / multicast MACs are never listed.
     assert set(devices) == {DEVICE_MAC, ROUTER_MAC, OTHER_MAC}
     dev = devices[DEVICE_MAC]
-    assert (dev.packets_sent, dev.packets_received) == (7, 2)  # sends 0,2,3,5,7,8,12; receives 1,4
+    assert (dev.packets_sent, dev.packets_received) == (8, 2)  # sends 0,2,3,5,6,7,8,12; receives 1,4
     assert DEVICE_IP in dev.ips
     other = devices[OTHER_MAC]
     assert (other.packets_sent, other.packets_received) == (2, 0)

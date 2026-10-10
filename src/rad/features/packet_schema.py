@@ -12,13 +12,14 @@ Columns (in order):
   cap_len          int32   captured frame length in bytes (may be < on-wire if snaplen cut it)
   ip_len           int32   IP-layer length from the IP header (IPv4 total length,
                            IPv6 payload length + 40). Used for volume features
-                           because it survives snaplen truncation.
+                           because it survives snaplen truncation. For ARP: the
+                           ARP message length (28 for Ethernet/IPv4).
   src_mac          string  "aa:bb:cc:dd:ee:ff" ("" if the link layer has none)
   dst_mac          string  as above
-  ip_version       int8    4 or 6
-  src_ip           string
-  dst_ip           string
-  ip_proto         int16   IP protocol / IPv6 next header (6 TCP, 17 UDP, 1 ICMP, 58 ICMPv6, ...)
+  ip_version       int8    4 or 6; 0 for ARP
+  src_ip           string  for ARP: sender protocol address
+  dst_ip           string  for ARP: target protocol address (the IP being asked about)
+  ip_proto         int16   IP protocol / IPv6 next header (6 TCP, 17 UDP, 1 ICMP, 58 ICMPv6, ...); -1 for ARP
   src_port         int32   -1 if not TCP/UDP or the L4 header could not be decoded
   dst_port         int32   -1 as above
   tcp_flags        int16   raw TCP flag byte; -1 if not TCP
@@ -30,6 +31,7 @@ Columns (in order):
                            set by the device filter
   peer_ip          string  the other endpoint's IP; set by the device filter
   peer_is_lan      bool    peer is in a local-scope range (see device_filter.LAN_NETWORKS)
+  arp_op           int16   ARP opcode (1 request, 2 reply); -1 if not ARP
 """
 
 from __future__ import annotations
@@ -46,6 +48,9 @@ TCP_PSH = 0x08
 TCP_ACK = 0x10
 
 DNS_RCODE_NXDOMAIN = 3
+
+ARP_REQUEST = 1
+ARP_REPLY = 2
 
 
 @dataclass(slots=True)
@@ -70,6 +75,7 @@ class PacketRecord:
     direction: str = ""
     peer_ip: str = ""
     peer_is_lan: bool = False
+    arp_op: int = -1
 
     def as_tuple(self) -> tuple:
         return tuple(getattr(self, name) for name in COLUMNS)
@@ -99,6 +105,7 @@ ARROW_SCHEMA = pa.schema(
         ("direction", pa.string()),
         ("peer_ip", pa.string()),
         ("peer_is_lan", pa.bool_()),
+        ("arp_op", pa.int16()),
     ]
 )
 

@@ -92,5 +92,5 @@ def test_cli_config_and_list_devices(tmp_path, pcap_path, capsys):
 
     assert main(["--list-devices", str(pcap_path)]) == 0
     out = capsys.readouterr().out
-    assert "13 frames, 11 IP packets" in out
+    assert "13 frames, 11 IP + 1 ARP packets" in out
     assert DEVICE_MAC in out and DEVICE_IP in out

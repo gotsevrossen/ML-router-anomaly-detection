@@ -3,7 +3,7 @@
 Design rules this module follows (CLAUDE.md §2, §5 Phase 1a):
   * Streaming: frames are yielded one at a time in capture order; the whole
     file is never loaded and packets are never re-ordered.
-  * Headers only: Ethernet / IP / TCP / UDP / ICMP headers are decoded. The
+  * Headers only: Ethernet / ARP / IP / TCP / UDP / ICMP headers are decoded. The
     one exception is DNS (UDP port 53), where the question name and response
     code are read because the DNS feature group needs them (see
     docs/decisions.md). No other payload byte is inspected.
@@ -41,7 +41,12 @@ _GZIP_MAGIC = b"\x1f\x8b"
 
 ETH_TYPE_IP = 0x0800
 ETH_TYPE_IP6 = 0x86DD
+ETH_TYPE_ARP = 0x0806
 DNS_PORT = 53
+
+# Only Ethernet/IPv4 ARP is decoded; other hardware/protocol pairs count as non-IP.
+ARP_HRD_ETHER = 1
+ARP_LEN_ETHER_IPV4 = 28  # 8-byte fixed part + 2 * (6-byte MAC + 4-byte IPv4)
 
 
 @dataclass
@@ -50,11 +55,12 @@ class ParseStats:
 
     frames_total: int = 0
     decoded_ip: int = 0
-    skipped_non_ip: int = 0  # e.g. ARP, LLDP, EAPOL
-    skipped_malformed: int = 0  # claimed IP but header could not be decoded
+    skipped_non_ip: int = 0  # e.g. LLDP, EAPOL, non-Ethernet/IPv4 ARP
+    skipped_malformed: int = 0  # claimed IP or ARP but header could not be decoded
     l4_undecoded: int = 0  # IP ok, but TCP/UDP/ICMP header truncated or a non-first fragment
     dns_undecoded: int = 0  # UDP/53 payload that is not a parseable DNS message
     out_of_order_ts: int = 0  # timestamp earlier than the previous frame's
+    decoded_arp: int = 0  # Ethernet/IPv4 ARP, kept because LAN scanning shows up mostly as ARP (D8)
 
     def as_dict(self) -> dict[str, int]:
         return asdict(self)
@@ -141,6 +147,29 @@ def _decode_dns(payload: bytes, rec: PacketRecord, stats: ParseStats) -> None:
         rec.dns_qname = msg.qd[0].name.lower().rstrip(".")
 
 
+def _decode_arp(
+    pkt_index: int, ts: float, buf: bytes, src_mac: str, dst_mac: str, arp: dpkt.arp.ARP, stats: ParseStats
+) -> PacketRecord | None:
+    """ARP becomes a record with ip_version 0 and sender/target IPs in src_ip/dst_ip."""
+    if (arp.hrd, arp.pro, arp.hln, arp.pln) != (ARP_HRD_ETHER, ETH_TYPE_IP, 6, 4):
+        stats.skipped_non_ip += 1
+        return None
+    stats.decoded_arp += 1
+    return PacketRecord(
+        pkt_index=pkt_index,
+        ts=ts,
+        cap_len=len(buf),
+        ip_len=ARP_LEN_ETHER_IPV4,
+        src_mac=src_mac,
+        dst_mac=dst_mac,
+        ip_version=0,
+        src_ip=socket.inet_ntop(socket.AF_INET, arp.spa),
+        dst_ip=socket.inet_ntop(socket.AF_INET, arp.tpa),
+        ip_proto=-1,
+        arp_op=int(arp.op),
+    )
+
+
 def decode_frame(
     pkt_index: int, ts: float, buf: bytes, linktype: int, stats: ParseStats
 ) -> PacketRecord | None:
@@ -155,6 +184,8 @@ def decode_frame(
         return None
     src_mac, dst_mac, ethertype, l3 = link
 
+    if isinstance(l3, dpkt.arp.ARP):
+        return _decode_arp(pkt_index, ts, buf, src_mac, dst_mac, l3, stats)
     if isinstance(l3, dpkt.ip.IP):
         ip_version = 4
         src_ip = socket.inet_ntop(socket.AF_INET, l3.src)
@@ -169,8 +200,8 @@ def decode_frame(
         proto = l3.p  # dpkt walks extension headers; this is the final next-header
         ip_len = l3.plen + 40
     else:
-        if ethertype in (ETH_TYPE_IP, ETH_TYPE_IP6):
-            stats.skipped_malformed += 1  # claimed IP but dpkt could not parse the header
+        if ethertype in (ETH_TYPE_IP, ETH_TYPE_IP6, ETH_TYPE_ARP):
+            stats.skipped_malformed += 1  # claimed IP/ARP but dpkt could not parse the header
         else:
             stats.skipped_non_ip += 1
         return None
@@ -204,7 +235,7 @@ def decode_frame(
 
 
 def iter_packets(path: str | Path, stats: ParseStats | None = None) -> Iterator[PacketRecord]:
-    """Stream decoded IP packets from a capture, in capture order.
+    """Stream decoded IP and ARP packets from a capture, in capture order.
 
     `stats` (if given) is updated in place, so callers can read the counters
     after (or during) iteration.

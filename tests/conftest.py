@@ -28,7 +28,7 @@ DT = 0.25  # exactly representable, so pcap (us) and pcapng timestamps round-tri
 IDX_SYN, IDX_SYNACK, IDX_RST, IDX_DNS_Q, IDX_DNS_NX, IDX_ICMP = 0, 1, 2, 3, 4, 5
 IDX_ARP, IDX_IPV6_MDNS, IDX_VLAN_TELNET, IDX_TRUNCATED_IP = 6, 7, 8, 9
 IDX_OTHER_DEVICE, IDX_OTHER_BCAST, IDX_TRUNCATED_TCP = 10, 11, 12
-DEVICE_INDICES = [0, 1, 2, 3, 4, 5, 7, 8, 12]
+DEVICE_INDICES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 12]
 
 
 def mac(m: str) -> bytes:
@@ -90,7 +90,7 @@ def standard_frames() -> list[tuple[float, bytes]]:
     # 5: ICMP echo request
     echo = dpkt.icmp.ICMP(type=dpkt.icmp.ICMP_ECHO, data=dpkt.icmp.ICMP.Echo(id=1, seq=1))
     frames.append(eth(DEVICE_MAC, ROUTER_MAC, ipv4_packet(DEVICE_IP, "1.1.1.1", echo, 1)))
-    # 6: ARP broadcast (non-IP, skipped)
+    # 6: ARP request broadcast by the device (kept, see D8)
     arp = dpkt.arp.ARP(sha=mac(DEVICE_MAC), spa=ip4(DEVICE_IP), tha=b"\x00" * 6, tpa=ip4(ROUTER_IP))
     frames.append(eth(DEVICE_MAC, BCAST_MAC, arp, dpkt.ethernet.ETH_TYPE_ARP))
     # 7: IPv6 mDNS to a multicast group

@@ -7,8 +7,10 @@ import dpkt
 import pytest
 
 from conftest import (
+    BCAST_MAC,
     DEVICE_IP,
     DEVICE_MAC,
+    IDX_ARP,
     IDX_DNS_NX,
     IDX_DNS_Q,
     IDX_ICMP,
@@ -17,14 +19,17 @@ from conftest import (
     IDX_SYNACK,
     IDX_TRUNCATED_TCP,
     IDX_VLAN_TELNET,
+    ROUTER_IP,
     ROUTER_MAC,
     T0,
+    eth,
+    ip4,
     ipv4_packet,
     mac,
     tcp,
     write_pcap,
 )
-from rad.features.packet_schema import TCP_ACK, TCP_SYN
+from rad.features.packet_schema import ARP_REPLY, ARP_REQUEST, TCP_ACK, TCP_SYN
 from rad.features.pcap_reader import ParseStats, iter_packets, normalize_mac
 
 
@@ -38,7 +43,8 @@ def test_stats_count_every_skip_reason(pcap_path):
     _, stats = _by_index(pcap_path)
     assert stats.frames_total == 13
     assert stats.decoded_ip == 11
-    assert stats.skipped_non_ip == 1  # ARP
+    assert stats.decoded_arp == 1
+    assert stats.skipped_non_ip == 0
     assert stats.skipped_malformed == 1  # truncated IPv4 header
     assert stats.l4_undecoded == 1  # truncated TCP header
     assert stats.dns_undecoded == 0
@@ -85,12 +91,41 @@ def test_icmp_ipv6_vlan_and_truncated_l4(pcap_path):
     assert cut.ip_len == 40  # from the IP header, despite the snaplen cut
 
 
+def test_arp_fields(pcap_path):
+    recs, _ = _by_index(pcap_path)
+    arp = recs[IDX_ARP]
+    assert (arp.src_mac, arp.dst_mac) == (DEVICE_MAC, BCAST_MAC)
+    assert (arp.ip_version, arp.ip_proto, arp.arp_op) == (0, -1, ARP_REQUEST)
+    assert (arp.src_ip, arp.dst_ip) == (DEVICE_IP, ROUTER_IP)
+    assert arp.ip_len == 28
+    assert (arp.src_port, arp.dst_port, arp.tcp_flags, arp.icmp_type) == (-1, -1, -1, -1)
+    # Every non-ARP record carries arp_op -1.
+    assert all(r.arp_op == -1 for i, r in recs.items() if i != IDX_ARP)
+
+
+def test_arp_reply_unsupported_and_truncated(tmp_path):
+    reply = dpkt.arp.ARP(op=dpkt.arp.ARP_OP_REPLY, sha=mac(ROUTER_MAC), spa=ip4(ROUTER_IP),
+                         tha=mac(DEVICE_MAC), tpa=ip4(DEVICE_IP))
+    non_ipv4 = dpkt.arp.ARP(pro=0x86DD, pln=16, sha=mac(DEVICE_MAC), spa=b"\x00" * 16,
+                            tha=b"\x00" * 6, tpa=b"\x00" * 16)
+    frames = [
+        (T0, eth(ROUTER_MAC, DEVICE_MAC, reply, dpkt.ethernet.ETH_TYPE_ARP)),
+        (T0 + 1, eth(DEVICE_MAC, BCAST_MAC, non_ipv4, dpkt.ethernet.ETH_TYPE_ARP)),
+        (T0 + 2, eth(DEVICE_MAC, BCAST_MAC, bytes(reply)[:10], dpkt.ethernet.ETH_TYPE_ARP)),
+    ]
+    stats = ParseStats()
+    recs = list(iter_packets(write_pcap(tmp_path / "arp.pcap", frames), stats))
+    (rec,) = recs
+    assert (rec.arp_op, rec.src_ip, rec.dst_ip, rec.dst_mac) == (ARP_REPLY, ROUTER_IP, DEVICE_IP, DEVICE_MAC)
+    assert (stats.decoded_arp, stats.skipped_non_ip, stats.skipped_malformed) == (1, 1, 1)
+
+
 def test_pcap_pcapng_and_gzip_give_identical_records(pcap_path, pcapng_path, pcap_gz_path):
     a = [r.as_tuple() for r in iter_packets(pcap_path)]
     b = [r.as_tuple() for r in iter_packets(pcapng_path)]
     c = [r.as_tuple() for r in iter_packets(pcap_gz_path)]
     assert a == b == c
-    assert len(a) == 11
+    assert len(a) == 12  # 11 IP + 1 ARP
 
 
 def test_capture_order_preserved_and_out_of_order_counted(tmp_path, frames):

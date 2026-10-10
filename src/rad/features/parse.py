@@ -123,7 +123,7 @@ def format_device_table(path: str | Path, top: int) -> str:
     stats = ParseStats()
     devices = list_devices(path, top=top, stats=stats)
     lines = [
-        f"{stats.frames_total} frames, {stats.decoded_ip} IP packets in {path}",
+        f"{stats.frames_total} frames, {stats.decoded_ip} IP + {stats.decoded_arp} ARP packets in {path}",
         f"{'MAC':<19}{'pkts_out':>10}{'pkts_in':>10}{'bytes_out':>13}{'bytes_in':>13}{'hours':>8}  IPs",
     ]
     for d in devices:

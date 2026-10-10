@@ -100,6 +100,8 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 9. Wrote 40 pytest tests on synthetic captures. They cover every decode path, pcap = pcapng = gzip equivalence, order preservation, out-of-order counting, raw-IP and SLL link types, the device filter, LAN ranges, MAC formats, and end-to-end CLI output. One test checks that rows for frames before *k* are identical no matter what comes after *k* (the streaming rule). All pass.
 10. Benchmarked a 260k-frame synthetic capture at about 20 s end to end.
 11. Wrote this README, [data/README.md](data/README.md) and [docs/decisions.md](docs/decisions.md).
+12. Downloaded the Kitsune and N-BaIoT datasets (N-BaIoT confirmed CSV-only). Identified the Mirai-infected device in the Kitsune Mirai capture as `3c:33:00:98:ee:fd` (192.168.2.110) from its ARP scanning burst, and parsed it.
+13. Added ARP decoding to the parser (D8): the infected device's scanning was ~96% ARP and was being discarded. New `arp_op` column appended to the packet schema; tests added.
 
 ---
 
@@ -115,11 +117,11 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | 6 | Filter by MAC | MAC filter plus an optional `target_ip` fallback; Linux SLL/SLL2 and raw-IP link types supported | Captures taken on a router (`tcpdump -i any`) or upstream of a device often lack a usable destination MAC. |
 | 7 | `utils/logging.py` implied by "use logging" | Named `utils/log.py` | Avoids confusion with the standard-library `logging` module. |
 | 8 | Folders for later phases | Created with placeholder `__init__.py` only, no code | CLAUDE.md: "begin with Phase 1a and do not jump ahead." |
+| 9 | Per-packet table from IP packets (feature table lists IP-level features only) | Ethernet/IPv4 ARP frames are also kept, with a new `arp_op` column | Mirai's LAN scanning is mostly ARP; dropping it hid most of the infection in the Kitsune Mirai capture (D8). |
 
 ---
 
 ## 7. Next steps
 
-- **You:** download the Kitsune Mirai capture into `data/raw/`, run `--list-devices`, put the device MAC in `configs/parse_kitsune_mirai.yaml`, parse it, and check `stats` in the meta.json.
-- **Phase 1b:** streaming 30 s window feature extractor (~25 features) with a bounded profile cache for the "new IP / port / domain" features. The cache must later go through the same quarantine as the model.
+- **Phase 1b:** streaming 30 s window feature extractor (~25 features, plus ARP features per D8) with a bounded profile cache for the "new IP / port / domain" features. The cache must later go through the same quarantine as the model.
 - **Phase 1c:** the five detectors behind a common `Detector` interface, plus a one-command baseline table (TPR@FPR=1e-3, partial AUC, false alarms per day).
