@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+adapt_unsw_cal_netatmo_camera_hst_slog_proj_frozen,frozen,hst,6957,0.7439463800683928,0.8347907376648754,7.342790519700962,7.393325778725044,277,284,0,0,6680,215,62,6957

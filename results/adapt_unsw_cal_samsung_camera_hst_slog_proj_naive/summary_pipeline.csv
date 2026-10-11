@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed
+adapt_unsw_cal_samsung_camera_hst_slog_proj_naive,naive,hst,6957,0.580550690766976,0.8742329653150953,474.76005328766877,483.1087916226951,10,21,0,0,6947,8,2,6957

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,final_blocked,final_rejected,final_purged,final_quarantined
+adapt_unsw_cal_tplink_plug_hst_slog_proj_full,full,hst,6951,0.7846867415730336,0.9950188177821202,0.026270369068661495,0.026270369068661495,0,10,1,0,6951,3279,1287,100,2285
