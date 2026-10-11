@@ -1,0 +1,20 @@
+# Phase 1b: 30 s window features for the Mirai-infected device in the Kitsune capture.
+# Run:  python -m rad.features.extract --config configs/features_kitsune_mirai.yaml
+# Needs data/interim/kitsune_mirai_device.parquet from configs/parse_kitsune_mirai.yaml.
+
+input: data/interim/kitsune_mirai_device.parquet
+name: kitsune_mirai_device_w30
+out_dir: data/processed
+window_s: 30
+tz_offset_h: 0              # capture timezone unknown; time-of-day features are UTC
+emit_empty: true
+window_set_cap: 4096
+conn_table_size: 1024
+conn_timeout_s: 300
+profile:
+  max_ips: 4096
+  max_ports: 1024
+  max_domains: 2048
+  top_k_ports: 3
+  update: bootstrap         # stand-in until the Phase 2 quarantine exists
+  bootstrap_windows: 60     # first 30 min, assumed clean (CLAUDE.md §8 cold start)

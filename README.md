@@ -2,7 +2,7 @@
 
 Undergraduate research project (Purdue, advisor: Prof. Esmaeili). The authoritative build spec is [CLAUDE.md](CLAUDE.md). This README explains the model in plain terms, says how to run what exists so far, and **logs every implementation step and every deviation from the plan**.
 
-**Status:** Phase 1a (pcap parsing) is done. Phase 1b (window features) is next.
+**Status:** Phase 1a (pcap parsing) and Phase 1b (30 s window features) are done. Phase 1c (detectors + baseline table) is next.
 
 ---
 
@@ -62,16 +62,19 @@ Run things with `uv run ...`, or activate the venv first (`.venv\Scripts\activat
 ## 3. Usage (what works today)
 
 ```bash
-uv run pytest                                                     # 40 tests
+uv run pytest                                                     # 64 tests
 uv run python -m rad.features.parse --list-devices data/raw/<capture>   # which MACs, how much traffic
 uv run python -m rad.features.parse --config configs/parse_kitsune_mirai.yaml
+uv run python -m rad.features.extract --config configs/features_kitsune_mirai.yaml   # Phase 1b
 ```
 
 Output: `data/interim/<device>.parquet` holds one row per packet of the target device, in capture order. Columns are documented in [packet_schema.py](src/rad/features/packet_schema.py). Next to it, `<device>.meta.json` records the config, git commit, package versions, and counters for every skipped frame. Data download steps are in [data/README.md](data/README.md).
 
+Phase 1b output: `data/processed/<name>.parquet` holds one row per 30 s window. The first five columns are window bookkeeping (`window_start`, `window_end`, `n_records`, `first_pkt_index`, `last_pkt_index`; the pkt indices are only for joining labels at evaluation time). The 31 features follow in `FEATURE_NAMES` order. A `meta.json` next to it records the config, git commit, and extractor and profile-cache counters.
+
 Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mirai capture takes about a minute.
 
-## 4. Code map (Phase 1a)
+## 4. Code map (Phase 1a–1b)
 
 | File | What it does |
 |---|---|
@@ -79,6 +82,9 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | [src/rad/features/device_filter.py](src/rad/features/device_filter.py) | Keeps one device's packets by MAC (with an optional IP fallback) and sets direction, peer IP and the LAN-peer flag. `list_devices()` summarises the MACs in a capture. |
 | [src/rad/features/packet_schema.py](src/rad/features/packet_schema.py) | `PacketRecord` plus the fixed Arrow schema. Column order is a contract for Phase 1b and the C port. |
 | [src/rad/features/parse.py](src/rad/features/parse.py) | CLI: streams into chunked parquet and writes meta.json. |
+| [src/rad/features/window_features.py](src/rad/features/window_features.py) | **The feature contract.** `FEATURE_NAMES` (31 features in a fixed order, each defined in the module docstring) and the streaming `WindowFeatureExtractor`, which emits one vector each time a window closes. `CommitPolicy` decides which windows update the profile cache until Phase 2 replaces it. |
+| [src/rad/features/profile_cache.py](src/rad/features/profile_cache.py) | Bounded profile cache (seen IPs, ports, domains, service-port counts) behind the "new …" features. It changes only through `commit()`, the hook for the Phase 2 quarantine. |
+| [src/rad/features/extract.py](src/rad/features/extract.py) | CLI: per-device packet parquet → window feature parquet + meta.json. |
 | [src/rad/utils/](src/rad/utils/) | YAML config load/save, logging setup, seeding, run metadata (git hash, versions). |
 | [tests/](tests/) | Synthetic captures built in-test with known answers, including a check that past rows never depend on future frames. |
 | [docs/decisions.md](docs/decisions.md) | Design decisions that affect results or the C port. |
@@ -102,6 +108,8 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 11. Wrote this README, [data/README.md](data/README.md) and [docs/decisions.md](docs/decisions.md).
 12. Downloaded the Kitsune and N-BaIoT datasets (N-BaIoT confirmed CSV-only). Identified the Mirai-infected device in the Kitsune Mirai capture as `3c:33:00:98:ee:fd` (192.168.2.110) from its ARP scanning burst, and parsed it.
 13. Added ARP decoding to the parser (D8): the infected device's scanning was ~96% ARP and was being discarded. New `arp_op` column appended to the packet schema; tests added.
+14. **Phase 1b.** Built the streaming 30 s window extractor with 31 features (`window_features.py`), the bounded profile cache (`profile_cache.py`) and the `extract` CLI. Decisions are recorded as D9–D12. Added 24 tests, including one that checks windows before *k* stay identical whatever traffic follows.
+15. Ran Phase 1b on the Kitsune Mirai device: 239 windows, none saturated, profile bootstrapped on the first 60 windows (30 min). Median per window, benign → attack: ARP requests 2 → 6,404, distinct ARP targets 2 → 240, failed-TCP index 6 → 168, connection attempts 6 → 94, top-3-port share 1.0 → 0.13. External destination IPs stay at 3, because this Mirai instance scans the LAN, not the internet.
 
 ---
 
@@ -118,10 +126,11 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | 7 | `utils/logging.py` implied by "use logging" | Named `utils/log.py` | Avoids confusion with the standard-library `logging` module. |
 | 8 | Folders for later phases | Created with placeholder `__init__.py` only, no code | CLAUDE.md: "begin with Phase 1a and do not jump ahead." |
 | 9 | Per-packet table from IP packets (feature table lists IP-level features only) | Ethernet/IPv4 ARP frames are also kept, with a new `arp_op` column | Mirai's LAN scanning is mostly ARP; dropping it hid most of the infection in the Kitsune Mirai capture (D8). |
+| 10 | ~25 features, "out/in byte ratio" | 31 features: the CLAUDE.md table plus `arp_req_out` and `n_arp_targets` (D8); the ratio is `out_byte_frac` in [0, 1] | ARP carries the LAN scanning. A bounded ratio suits HST and fixed-point C (D12). |
+| 11 | Profile cache obeys quarantine/commit rules | The extractor never writes the cache. A `CommitPolicy` stand-in (bootstrap / always / never) decides until the Phase 2 quarantine replaces it | Keeps Phase 1b free of Phase 2 logic while leaving the exact seam the quarantine needs (D10). |
 
 ---
 
 ## 7. Next steps
 
-- **Phase 1b:** streaming 30 s window feature extractor (~25 features, plus ARP features per D8) with a bounded profile cache for the "new IP / port / domain" features. The cache must later go through the same quarantine as the model.
 - **Phase 1c:** the five detectors behind a common `Detector` interface, plus a one-command baseline table (TPR@FPR=1e-3, partial AUC, false alarms per day).

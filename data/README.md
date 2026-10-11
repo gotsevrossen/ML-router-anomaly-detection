@@ -6,7 +6,7 @@ Raw data never goes in git. Everything under `raw/`, `interim/` and `processed/`
 |---|---|---|
 | `raw/` | Downloaded pcaps / CSVs, untouched | you |
 | `interim/` | Per-device packet tables (`<device>.parquet` + `<device>.meta.json`) | `python -m rad.features.parse` (Phase 1a) |
-| `processed/` | 30 s windowed feature matrices | Phase 1b (not built yet) |
+| `processed/` | 30 s windowed feature matrices (`<name>.parquet` + `<name>.meta.json`) | `python -m rad.features.extract` (Phase 1b) |
 
 ## 1. Kitsune Network Attack Dataset (primary real-pcap source)
 
