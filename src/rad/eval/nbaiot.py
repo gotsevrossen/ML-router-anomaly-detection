@@ -149,10 +149,16 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m rad.eval.nbaiot", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", required=True)
+    ap.add_argument("--device", help="run another N-BaIoT device with the same config (sibling folder of "
+                                     "device_dir); the experiment name gets the device appended")
     ap.add_argument("--log-level", default="INFO")
     args = ap.parse_args(argv)
     setup_logging(args.log_level)
-    run_nbaiot(load_config(args.config))
+    cfg = load_config(args.config)
+    if args.device:
+        cfg["device_dir"] = str(Path(cfg["device_dir"]).parent / args.device)
+        cfg["experiment"] = f"{cfg['experiment']}_{args.device}"
+    run_nbaiot(cfg)
     return 0
 
 
