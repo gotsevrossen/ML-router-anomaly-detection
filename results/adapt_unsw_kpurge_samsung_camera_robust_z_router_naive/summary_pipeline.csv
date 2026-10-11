@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed
+adapt_unsw_kpurge_samsung_camera_robust_z_router_naive,naive,robust_z,6957,0.4979603868145605,0.5809458156114866,38,46,0,0,6919,23,15,6957

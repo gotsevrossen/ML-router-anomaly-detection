@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,alerts,raw_alerts,drift_notices,divergence,state_normal,final_committed
+adapt_unsw_kpurge_wemo_switch_robust_z_router_naive,naive,robust_z,6955,0.51562287355466,0.5914792944038534,0,4,0,0,6955,6955

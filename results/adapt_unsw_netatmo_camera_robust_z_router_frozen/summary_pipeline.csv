@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+adapt_unsw_netatmo_camera_robust_z_router_frozen,frozen,robust_z,6957,0.4826509129238642,0.5606565024137143,320,321,0,0,6637,256,64,6957

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,alerts,raw_alerts,drift_notices,divergence,state_normal,final_committed
+adapt_unsw_kpurge_tplink_plug_hst_slog_proj_naive,naive,hst,6951,0.7846867415730336,0.9950188177821202,0,2,0,0,6951,6951

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed,final_rejected,final_purged,final_quarantined
+adapt_unsw_samsung_camera_hst_slog_proj_gated,gated,hst,6957,0.580550690766976,0.8742329653150953,51,59,0,0,6906,49,2,359,1232,2900,2466
