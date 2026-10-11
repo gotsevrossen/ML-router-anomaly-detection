@@ -473,6 +473,21 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
   - Replaying bootstrap days puts windows at the training extremes back in front of the model. On Samsung that alone gives 102 alerts per replay of 2018-05-28, so false alarms in this experiment are not comparable to F26/F31.
   - A single new destination does not change the scores (the "known destination" variant gave identical results), because volume features dominate the top-3.
 
+### F34. RQ2/RQ4 with scripted benign drift (D46): the update rule protects but does not yet adapt usefully. [Preliminary: 3 devices, replayed days]
+- **Setup.** 3 events injected at packet level on replay day 2 of 7: a firmware update (download, then a permanent new heartbeat server), an app reinstall (8 new domains and servers in 5 min), and a usage increase (application data ×2 from then on).
+- **The changes the frozen model tolerates stay tolerated.**
+  - TP-Link, firmware update: 21–24 alarms on the event day, then about 0.7 per day.
+  - Usage increase: 0 alarms frozen and under full.
+  - WEMO switch: 0 alarms for every event and rule.
+- **Learning can *create* alarms on a sparse device.** The TP-Link plug's traffic is mostly keepalives. There, the gated rule went from 0 to 9 alarms per day after the reinstall and from 0 to 12.7 after the usage increase. The full rule went to 23 per day after the reinstall but stayed at 0 for usage. Monotone scales (D44) are not enough: the learned median shift and the sketch estimates on sparse features need investigation.
+- **Persistent changes that look unusual are never learned.** The quarantine admits only windows scoring below `tau_admit`. A first usage simulation that also doubled ARP, ICMP and SYN packets gave about 42 alarms per day under every non-naive rule, indefinitely. By design (CLAUDE.md 2b), such changes need an operator decision (notice → rebase).
+- **RQ4:** pure benign changes are mostly labelled `suspected_attack` (benign-drift share 4–30% on the TP-Link). Samsung is about 90% drift, but its alarms there are dominated by the replay artefact of F33.
+- **Simulation flaws found and fixed** (commit log): the usage increase first duplicated SYN, FIN and RST packets, then ARP and ICMP, which turned volume growth into fake connection and ARP anomalies.
+- **Open design questions for the update rule** (affect the RQ2/RQ4 claims):
+  1. A pathway for persistent benign change, e.g. accept a shift after N days of consistent drift-labelled alarms, within the budget.
+  2. Learning that cannot make a sparse device's model stricter (median as well as scale).
+  3. A better drift-vs-attack signal than volume-vs-diversity z-scores.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)

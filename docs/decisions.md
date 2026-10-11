@@ -276,3 +276,8 @@ Flagged items, accepted and documented:
 - Chaff runs in 5-minute bursts each hour. On chaff day k it runs at rate R(1+α)^(k−N−1), and the real attack day runs at R.
 - Benign false alarms exclude a 120 s guard after each burst, because k-of-n alerts persist briefly.
 - Declared before running, apart from the fixes noted in the commit log (partial days, burst guard, the stealthy "known destination" variant added before its first run).
+
+**D46. Benign drift simulation** ([benign_drift.py](../src/rad/attacks/benign_drift.py), [drift.py](../src/rad/eval/drift.py), `configs/drift_unsw.yaml`).
+- Packet-level events on replayed benign days, with the same layout as D45.
+- Usage increase = TCP/UDP application data packets duplicated. Connection control, DNS, ARP and ICMP are left alone, because more use does not mean more failed connections or more ARP.
+- Metrics: alarms per day before the event, on the event day, and over the last 3 days; the drift-label share; windows learned.
