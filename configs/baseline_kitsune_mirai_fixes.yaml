@@ -1,0 +1,35 @@
+# Branch fix/iforest-mad-extrapolation: original vs fixed IForest and MAD on the Mirai device (Kitsune unchanged, see baseline_kitsune_mirai).
+# Run:  python -m rad.eval.baseline --config configs/baseline_kitsune_mirai.yaml
+# Needs the outputs of configs/parse_kitsune_mirai.yaml and configs/features_kitsune_mirai.yaml.
+
+experiment: baseline_kitsune_mirai_fixes
+seed: 0
+out_dir: results
+windows: data/processed/kitsune_mirai_device_w30.parquet
+packets: data/interim/kitsune_mirai_device.parquet
+labels: data/raw/kitsune+network+attack+dataset/mirai/Mirai_labels.csv.gz   # evaluation only
+
+features:
+  # The capture spans ~2 h, so time-of-day only ever increases: a detector trained on the
+  # first 30 min would flag every later window for its clock alone (D13).
+  exclude: [tod_sin, tod_cos, is_weekend]
+
+split:
+  bootstrap_windows: 60     # first 30 min; the same windows bootstrapped the profile cache
+  validation_windows: 45    # next 22.5 min, benign; sets the alert threshold
+
+threshold:
+  alarms_per_day: 1         # target false-alarm rate used to set tau on validation
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  hst: {n_trees: 25, height: 10, window_size: 50, seed: 0}   # window_size <= bootstrap (D13)
+  iforest: {n_estimators: 100, max_samples: 256, seed: 0}
+  autoencoder: {hidden: 8, lr: 0.01, bootstrap_steps: 1200, steps_per_learn: 20, batch_size: 32, seed: 0}
+  mad: {}
+  iforest_headroom: {type: iforest, n_estimators: 100, max_samples: 256, margin: 0.25, extra_depth: 4, seed: 0}
+  iforest_extended: {type: iforest, n_estimators: 100, max_samples: 256, margin: 0.25, extra_depth: 4, hyperplane: true, tail_quantile: 0.999, tail_z: 3.0, seed: 0}
+  mad_tail: {type: mad, tail_quantile: 0.999, tail_z: 3.0}
