@@ -94,9 +94,13 @@ def iter_frames(path: str | Path) -> Iterator[tuple[int, float, bytes, int]]:
     """Yield (pkt_index, ts, frame_bytes, linktype) for every frame, in capture order."""
     fh, reader = open_capture(path)
     linktype = reader.datalink()
+    idx = -1
     try:
         for idx, (ts, buf) in enumerate(reader):
             yield idx, float(ts), buf, linktype
+    except dpkt.NeedData:
+        # A capture cut off mid-record (common when a recording is stopped): keep every complete frame.
+        log.warning("%s: truncated record after frame %d; the rest of the file is unreadable", path, idx)
     finally:
         fh.close()
 

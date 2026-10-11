@@ -170,3 +170,17 @@ def test_normalize_mac(raw):
 def test_normalize_mac_rejects_garbage():
     with pytest.raises(ValueError):
         normalize_mac("02:00:00:00:00")
+
+
+@pytest.mark.parametrize("fixture", ["pcap_path", "pcapng_path"])
+def test_truncated_capture_keeps_every_complete_frame(fixture, request, tmp_path):
+    from rad.features.pcap_reader import iter_frames
+    src = request.getfixturevalue(fixture)
+    full = list(iter_frames(src))
+    cut = tmp_path / f"cut{src.suffix}"
+    cut.write_bytes(src.read_bytes()[:-10])  # the last record loses its tail
+    got = list(iter_frames(cut))
+    # pcapng raises NeedData on the cut record (caught); classic pcap returns it shortened. Either way: no crash,
+    # and every complete frame before it is kept.
+    assert len(full) - 1 <= len(got) <= len(full)
+    assert [g[2] for g in got[: len(full) - 1]] == [f[2] for f in full[:-1]]
