@@ -27,6 +27,10 @@ datasets:
     config: configs/unsw.yaml
     detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}}   # buffer must cover the 2-day bootstrap
     windows_tag: "_v34"
+  unsw_oct:
+    config: configs/unsw_oct.yaml
+    detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}}
+    windows_tag: "_v34"
 
 detectors:
   robust_z_router: {type: robust_z, stats: sketch, precision: int16}

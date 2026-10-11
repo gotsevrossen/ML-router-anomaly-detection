@@ -9,6 +9,7 @@ while it improves a new one. This runner re-runs the same detector block on:
   nbaiot         the 9 N-BaIoT devices, per row, seed 0 (Danmini = development)
   kitsune_suite  the 5 usable Kitsune captures, 30 s windows (D29)
   unsw           the 5 UNSW IoT devices, 30 s windows (D30)
+  unsw_oct       5 other UNSW devices, October 2018 (D36)
 Window features are re-extracted under `windows_tag` when the feature code changes,
 so stored windows from older feature versions are never mixed in.
 
@@ -115,7 +116,8 @@ def run_unsw(rc: dict[str, Any], dets: dict, tag: str) -> list[pd.DataFrame]:
     return out
 
 
-RUNNERS = {"mirai": run_mirai, "nbaiot": run_nbaiot_all, "kitsune_suite": run_kitsune_suite, "unsw": run_unsw}
+RUNNERS = {"mirai": run_mirai, "nbaiot": run_nbaiot_all, "kitsune_suite": run_kitsune_suite, "unsw": run_unsw,
+           "unsw_oct": run_unsw}
 
 
 def summarize(df: pd.DataFrame, ref: pd.DataFrame | None) -> str:

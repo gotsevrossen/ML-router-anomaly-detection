@@ -1,0 +1,54 @@
+# Second UNSW batch (D36): 5 OTHER devices, October 2018 (pcaps not listed on the web page but served at the
+# same URL pattern). Held out: never inspected before this config was fixed (2026-10-11 13:45).
+# Run:  python -m rad.eval.unsw --config configs/unsw.yaml
+# Everything below was fixed BEFORE the first run on this dataset (2026-10-11). Detector settings are
+# copied unchanged from the existing configs (kitsune_suite.yaml, nbaiot_improved.yaml); HST/AE get the
+# larger-bootstrap settings that the N-BaIoT configs already use.
+# Split: day 1-2 bootstrap (10-17, 10-18), day 3 validation (10-19), attack days test; 10-20/21 not downloaded
+# (no annotated attacks) and become a capture gap.
+# Labels: annotation intervals; benign windows ending within 120 s after an attack are excluded.
+# Time-of-day features kept (real days, Sydney = UTC+11 in late October); is_weekend excluded because the
+# bootstrap days are weekdays and the attack days include a weekend.
+
+experiment: unsw_oct
+seed: 0
+out_dir: results
+data_dir: "C:/Users/gotse/OneDrive/Desktop/AI reserch data/unsw-iot-sosr2019/pcap"
+annotations_dir: "C:/Users/gotse/OneDrive/Desktop/AI reserch data/unsw-iot-sosr2019/annotations/annotations"
+work_dir: data/interim/unsw_oct
+workers: 6
+window_s: 30
+tz_offset_h: 11   # Sydney daylight time from 2018-10-07
+days: [benign/18-10-17, benign/18-10-18, benign/18-10-19, AttackAndBenign/18-10-22, AttackAndBenign/18-10-23, AttackAndBenign/18-10-24, AttackAndBenign/18-10-25, AttackAndBenign/18-10-26]
+
+devices:
+  hue_bulb: "00:17:88:2b:9a:25"
+  amazon_echo: "44:65:0d:56:cc:d3"
+  chromecast: "f4:f5:d8:8f:0a:3c"
+  ihome: "74:c6:3b:29:d7:1d"
+  lifx_bulb: "d0:73:d5:01:83:08"
+
+split:
+  bootstrap_days: 2
+  validation_days: 1
+guard_after_s: 120
+# Added after the first run (D30 deviation): windows where no device has any packet are capture gaps.
+drop_capture_gaps: true
+
+features:
+  exclude: [is_weekend]
+
+threshold:
+  alarms_per_day: 1
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16}
+  mad_tail_slog: {type: mad, window: 5760, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, seed: 0, preprocess: {steps: [slog]}}
+  iforest_ext_sparse_slog: {type: iforest, n_estimators: 100, max_samples: 256, window: 5760, margin: 0.25, extra_depth: 4, hyperplane: true, hyperplane_features: sqrt, seed: 0, preprocess: {steps: [slog]}}
+  hst_slog: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog]}}
+  kitnet_windows: {type: kitnet, max_autoencoder_size: 10, fm_frac: 0.1}
