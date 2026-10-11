@@ -1,0 +1,50 @@
+# New held-out dataset (D30): UNSW IoT attack traces (ACM SOSR 2019), 5 devices, real days.
+# Run:  python -m rad.eval.unsw --config configs/unsw.yaml
+# Everything below was fixed BEFORE the first run on this dataset (2026-10-11). Detector settings are
+# copied unchanged from the existing configs (kitsune_suite.yaml, nbaiot_improved.yaml); HST/AE get the
+# larger-bootstrap settings that the N-BaIoT configs already use.
+# Split: day 1-2 bootstrap, day 3 validation, days 4-6 test (1 benign day + 2 attack days).
+# Labels: annotation intervals; benign windows ending within 120 s after an attack are excluded.
+# Time-of-day features kept (real days, Sydney = UTC+10, no DST in May/June); is_weekend excluded because the
+# bootstrap days are weekdays and the attack days include a weekend.
+
+experiment: unsw
+seed: 0
+out_dir: results
+data_dir: "C:/Users/gotse/OneDrive/Desktop/AI reserch data/unsw-iot-sosr2019/pcap"
+annotations_dir: "C:/Users/gotse/OneDrive/Desktop/AI reserch data/unsw-iot-sosr2019/annotations/annotations"
+work_dir: data/interim/unsw
+workers: 6
+window_s: 30
+tz_offset_h: 10
+days: [benign/18-05-28, benign/18-05-29, benign/18-05-30, benign/18-05-31, AttackAndBenign/18-06-01, AttackAndBenign/18-06-02]
+
+devices:
+  wemo_motion: "ec:1a:59:83:28:11"
+  wemo_switch: "ec:1a:59:79:f4:89"
+  samsung_camera: "00:16:6c:ab:6b:88"
+  tplink_plug: "50:c7:bf:00:56:39"
+  netatmo_camera: "70:ee:50:18:34:43"
+
+split:
+  bootstrap_days: 2
+  validation_days: 1
+guard_after_s: 120
+
+features:
+  exclude: [is_weekend]
+
+threshold:
+  alarms_per_day: 1
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16}
+  mad_tail_slog: {type: mad, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, seed: 0, preprocess: {steps: [slog]}}
+  iforest_ext_sparse_slog: {type: iforest, n_estimators: 100, max_samples: 256, margin: 0.25, extra_depth: 4, hyperplane: true, hyperplane_features: sqrt, seed: 0, preprocess: {steps: [slog]}}
+  hst_slog: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog]}}
+  kitnet_windows: {type: kitnet, max_autoencoder_size: 10, fm_frac: 0.1}

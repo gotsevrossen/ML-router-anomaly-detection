@@ -55,7 +55,9 @@ def resolve_config(cfg: dict[str, Any]) -> dict[str, Any]:
     resolved = {**DEFAULTS, **cfg}
     for key in ("features", "threshold", "metrics"):
         resolved[key] = {**DEFAULTS[key], **(cfg.get(key) or {})}
-    missing = [k for k in ("experiment", "windows", "packets", "labels", "split", "detectors") if not resolved.get(k)]
+    missing = [k for k in ("experiment", "windows", "split", "detectors") if not resolved.get(k)]
+    if not resolved.get("window_labels"):  # frame labels need the packet table to map frames to windows
+        missing += [k for k in ("packets", "labels") if not resolved.get(k)]
     if missing:
         raise ValueError(f"Config is missing required keys: {missing}")
     return resolved
@@ -216,7 +218,15 @@ def run_baseline(cfg: dict[str, Any]) -> dict[str, Any]:
     rows = windows[features].to_dict("records")
     split = split_labels(len(windows), int(cfg["split"]["bootstrap_windows"]), int(cfg["split"]["validation_windows"]))
 
-    attack_frac = window_attack_fraction(windows, cfg["packets"], load_frame_labels(cfg["labels"]))
+    window_labels = cfg.pop("window_labels", None)
+    if window_labels is not None:
+        # Interval-annotated datasets (rad.eval.unsw): attack fraction per window given directly.
+        # `exclude` windows (e.g. just after an attack) leave validation and test entirely.
+        attack_frac = np.asarray(window_labels["attack_frac"], dtype=float)
+        exclude = np.asarray(window_labels.get("exclude", np.zeros(len(windows), bool)), dtype=bool)
+        split[exclude & (split != "bootstrap")] = "excluded"
+    else:
+        attack_frac = window_attack_fraction(windows, cfg["packets"], load_frame_labels(cfg["labels"]))
     y = (attack_frac > 0).astype(int)
     if y[split == "validation"].any() or y[split == "bootstrap"].any():
         log.warning("Labelled attack windows fall inside bootstrap/validation; the split assumes they are benign.")
@@ -248,6 +258,8 @@ def run_baseline(cfg: dict[str, Any]) -> dict[str, Any]:
         "test_benign": int((test & (y == 0)).sum()),
         "test_attack": int((test & (y == 1)).sum()),
     }
+    if window_labels is not None:
+        counts["excluded"] = int((split == "excluded").sum())
     table.to_csv(out / "summary_baseline.csv", index=False)
     with open(out / "summary_baseline.md", "w", encoding="utf-8") as fh:
         fh.write(f"# {cfg['experiment']}\n\n")
