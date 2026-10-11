@@ -34,21 +34,24 @@ def partial_auc(y: np.ndarray, s: np.ndarray, max_fpr: float) -> float:
     return float(roc_auc_score(y, s, max_fpr=max_fpr))
 
 
-def threshold_for_alarm_rate(benign_scores: np.ndarray, alarms_per_day: float, window_s: float) -> float:
+def threshold_for_fpr(benign_scores: np.ndarray, fpr: float) -> float:
     """Alert threshold set on benign validation scores only (no attack data, CLAUDE.md §8).
 
-    Picks the empirical quantile 1 - (alarms_per_day * window_s / 86400). When the
-    validation set is too short to resolve that rate, this is its maximum score,
-    and the threshold is nudged just above it so no validation window alerts.
+    Lets floor(fpr * n) validation samples alert. When the validation set is too
+    small to resolve `fpr`, the threshold sits just above its maximum score.
     """
     s = np.sort(np.asarray(benign_scores, dtype=float))
     if len(s) == 0:
         raise ValueError("need benign validation scores to set a threshold")
-    rate = alarms_per_day * window_s / SECONDS_PER_DAY
-    k = int(np.floor(rate * len(s)))  # validation windows allowed to alert
+    k = int(np.floor(fpr * len(s)))
     if k == 0:
         return float(np.nextafter(s[-1], np.inf))
     return float(s[len(s) - k])
+
+
+def threshold_for_alarm_rate(benign_scores: np.ndarray, alarms_per_day: float, window_s: float) -> float:
+    """Threshold for a target number of false alarms per day of windows (see threshold_for_fpr)."""
+    return threshold_for_fpr(benign_scores, alarms_per_day * window_s / SECONDS_PER_DAY)
 
 
 def false_alarms_per_day(benign_scores: np.ndarray, tau: float, window_s: float) -> float:

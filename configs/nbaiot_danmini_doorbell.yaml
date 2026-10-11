@@ -1,0 +1,28 @@
+# Phase 1c secondary benchmark: N-BaIoT Danmini doorbell, 115 pre-extracted features per row.
+# Run:  python -m rad.eval.nbaiot --config configs/nbaiot_danmini_doorbell.yaml
+# The attack .rar files must be extracted first (data/README.md §2).
+
+experiment: nbaiot_danmini_doorbell
+seed: 0
+out_dir: results
+# This laptop keeps the extracted copy outside the repo (data/README.md §2).
+device_dir: C:/Users/gotse/OneDrive/Desktop/AI reserch data/detection+of+iot+botnet+attacks+n+baiot/Danmini_Doorbell
+
+split:
+  bootstrap_frac: 0.5        # benign rows in file order
+  validation_frac: 0.2       # sets the threshold; the remaining 30% is benign test
+attack_rows_per_file: 2000   # seeded sample from each of the 10 attack CSVs
+
+threshold:
+  target_fpr: 0.001
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  hst: {n_trees: 25, height: 10, window_size: 250, seed: 0}
+  iforest: {n_estimators: 100, max_samples: 256, window: 50000, seed: 0}
+  autoencoder: {hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, buffer: 50000, seed: 0}
+  mad: {window: 50000}
+  kitnet: {max_autoencoder_size: 10, fm_frac: 0.1}

@@ -53,3 +53,23 @@ This keeps memory static for the C port. An exact capped set was chosen over a B
 - *Failed/half-open TCP* is `max(0, SYN_out − SYN/ACK_in) + max(0, SYN_in − SYN/ACK_out) + RST packets` within the window. It is an index of failure, not an exact count (a refused SYN counts once as unanswered and once for its RST), and it needs no lookahead.
 - *Connection duration* is the time from the first SYN to the first FIN or RST on the same (local port, peer IP, remote port), for connections that closed in the window. Tracking is bounded by `conn_table_size` (1024) and `conn_timeout_s` (300 s).
 - *Time of day* uses UTC plus a configured `tz_offset_h`, because pcaps carry no timezone. The weekday comes from integer day arithmetic (1970-01-01 was a Thursday) so the C port matches exactly.
+
+## Phase 1c: detectors and baseline protocol
+
+**D13. Baseline protocol: frozen detectors, a time-ordered split, and thresholds from benign validation only.**
+Windows are split in time order into bootstrap (training), validation and test. Every detector is trained on bootstrap and then frozen; naive and gated updating are Phase 2/3 ablations. The alert threshold `tau` is the validation-score quantile that gives a target false-alarm rate (default 1/day). When validation is too short to resolve that rate, `tau` sits just above the highest validation score. Attack labels are used only for test metrics. They are never used for training, the threshold or the split.
+Two settings are specific to the 2-hour Kitsune Mirai capture:
+- *Time-of-day features are excluded.* Within 2 hours, time only increases, so a detector trained on the first 30 minutes would flag every later window for its clock alone. They belong back in on multi-day data.
+- *HST `window_size` is 50 instead of 250.* river's HST scores 0 until its first reference window is full, so `window_size` must not exceed the 60 bootstrap windows.
+
+A caveat follows from the data size. With roughly 45 benign test windows, the FPR resolution is about 0.02, so "TPR at FPR = 1e-3" is really TPR at zero false positives, and false alarms/day is measured on about 22 minutes. These numbers show that the pipeline works; they are not evidence of a low false-alarm rate.
+
+**D14. Scaled detectors keep headroom around the bootstrap range** (`margin`, default 0.25: bootstrap [min, max] maps to [0.25, 0.75], clipped to [0, 1]).
+With plain min-max scaling and clipping, a value far beyond anything seen in bootstrap is clipped onto the bootstrap maximum. HST then puts it in the same leaf as the most extreme benign window and cannot tell them apart (found by a test; see `test_hst_separates_values_far_beyond_bootstrap_range`). With headroom, novel magnitudes reach leaves that bootstrap left empty. The autoencoder uses the same scaling. Bounds are still fixed after bootstrap, as the C port needs.
+
+**D15. Score normalisation.** HST (river) and Isolation Forest (original-paper score, `-score_samples`) are naturally in [0, 1]. Unbounded scores (autoencoder MSE, MAD's max robust z, KitNET RMSE) go through `r / (1 + r)`. This is monotone, so ranks and every reported metric are unchanged; it only puts all detectors on one scale for plots and later score fusion.
+
+**D16. Kitsune is fed only the target device's packets, and its window score is the maximum packet score in the window.**
+This keeps the single-device scope (CLAUDE.md §2). Kitsune normally watches a whole network segment, which is a difference from its paper setting. The device's packets go to the vendored netStat/KitNET unmodified, with fields mapped exactly as Kitsune's own scapy parser maps them. KitNET trains on the packets of the bootstrap windows: the first 10% learn the feature map and the rest train the autoencoders. It is frozen afterwards, as Kitsune does by default. Kitsune-py runs at about 300–500 packets/s here, so its window scores are cached on disk. RQ1 should compare against Kitsune's published C++ throughput, not this Python port.
+
+**D17. N-BaIoT is a per-row secondary benchmark on its own 115 features.** It has no timestamps or pcaps, so window features, false alarms/day and time to detect do not apply. Benign rows in file order are split 50/20/30 into bootstrap, validation and test. 2,000 rows are sampled (seeded) from each attack file. The threshold is set for FPR 1e-3 on validation.

@@ -14,13 +14,15 @@ class HSTDetector:
 
     river's HST scores 0 until its first reference window (`window_size` learned
     samples) is complete, so `window_size` must not exceed the bootstrap length.
+    `margin` keeps headroom around the bootstrap range so that never-seen
+    magnitudes fall into empty leaves (D14).
     """
 
     def __init__(self, features: Sequence[str], n_trees: int = 25, height: int = 10,
-                 window_size: int = 250, seed: int = 0) -> None:
+                 window_size: int = 250, margin: float = 0.25, seed: int = 0) -> None:
         self.features = tuple(features)
         self.window_size = window_size
-        self.scaler = FixedMinMaxScaler(self.features)
+        self.scaler = FixedMinMaxScaler(self.features, margin=margin)
         self.model = anomaly.HalfSpaceTrees(n_trees=n_trees, height=height, window_size=window_size, seed=seed)
 
     def bootstrap(self, xs: Sequence[dict[str, float]]) -> None:

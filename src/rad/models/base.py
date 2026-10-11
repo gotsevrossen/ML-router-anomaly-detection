@@ -47,15 +47,20 @@ def squash(r: float) -> float:
 
 
 class FixedMinMaxScaler:
-    """Min-max scaling to [0, 1] with bounds frozen after bootstrap; out-of-range values are clipped.
+    """Min-max scaling with bounds frozen after bootstrap; the result is clipped to [0, 1].
 
     Frozen bounds keep scores comparable over time and let the C port use fixed-point
-    features (CLAUDE.md §5 1c). A feature that was constant during bootstrap maps to 0
-    at its bootstrap value and to 1 above it (0 below).
+    features (CLAUDE.md §5 1c). `margin` reserves headroom: the bootstrap range maps
+    to [margin, 1 - margin], so values beyond anything seen in bootstrap still land
+    in distinct regions instead of being clipped onto the bootstrap extremes (D14).
+    A feature constant during bootstrap maps to `margin` at that value, 1 above it, 0 below.
     """
 
-    def __init__(self, features: Sequence[str]) -> None:
+    def __init__(self, features: Sequence[str], margin: float = 0.0) -> None:
+        if not 0.0 <= margin < 0.5:
+            raise ValueError("margin must be in [0, 0.5)")
         self.features = tuple(features)
+        self.margin = margin
         self.lo: np.ndarray | None = None
         self.hi: np.ndarray | None = None
 
@@ -73,8 +78,10 @@ class FixedMinMaxScaler:
         if self.lo is None or self.hi is None:
             raise RuntimeError("scaler used before bootstrap")
         span = self.hi - self.lo
-        out = np.where(span > 0, (m - self.lo) / np.where(span > 0, span, 1.0), (m > self.lo).astype(float))
-        return np.clip(out, 0.0, 1.0)
+        mg = self.margin
+        ranged = mg + (1 - 2 * mg) * (m - self.lo) / np.where(span > 0, span, 1.0)
+        constant = np.where(m > self.lo, 1.0, np.where(m < self.lo, 0.0, mg))
+        return np.clip(np.where(span > 0, ranged, constant), 0.0, 1.0)
 
     def transform_vec(self, x: dict[str, float]) -> np.ndarray:
         return self._scale(np.array([x[f] for f in self.features], dtype=float))

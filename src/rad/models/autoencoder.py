@@ -22,9 +22,10 @@ class AutoencoderDetector:
     """
 
     def __init__(self, features: Sequence[str], hidden: int = 8, lr: float = 1e-2, bootstrap_steps: int = 1000,
-                 steps_per_learn: int = 20, batch_size: int = 32, buffer: int = 2880, seed: int = 0) -> None:
+                 steps_per_learn: int = 20, batch_size: int = 32, buffer: int = 2880, margin: float = 0.25,
+                 seed: int = 0) -> None:
         self.features = tuple(features)
-        self.scaler = FixedMinMaxScaler(self.features)
+        self.scaler = FixedMinMaxScaler(self.features, margin=margin)
         self.bootstrap_steps = bootstrap_steps
         self.steps_per_learn = steps_per_learn
         self.batch_size = batch_size

@@ -81,6 +81,30 @@ def test_fixed_minmax_scaler_freezes_and_clips():
     assert sc.transform({"x": -5, "k": 2}) == {"x": 0.0, "k": 0.0}
 
 
+def test_scaler_margin_keeps_headroom_beyond_bootstrap():
+    sc = FixedMinMaxScaler(["x", "k"], margin=0.25).fit([{"x": 0, "k": 3}, {"x": 10, "k": 3}])
+    assert sc.transform({"x": 0, "k": 3}) == {"x": 0.25, "k": 0.25}
+    assert sc.transform({"x": 10, "k": 4}) == {"x": 0.75, "k": 1.0}
+    assert sc.transform({"x": 15, "k": 3})["x"] == pytest.approx(1.0)  # half a range beyond the max
+    assert sc.transform({"x": 100, "k": 3})["x"] == 1.0
+    with pytest.raises(ValueError):
+        FixedMinMaxScaler(["x"], margin=0.5)
+
+
+def test_hst_separates_values_far_beyond_bootstrap_range():
+    """Regression for D14: with clipping and no headroom, far-out values look like the bootstrap max."""
+    rng = np.random.default_rng(0)
+    rows = [{"a": float(v)} for v in rng.normal(10, 1, 300)]
+    top = {"a": max(r["a"] for r in rows)}
+    gap = {}
+    for margin in (0.0, 0.25):
+        det = build_detector("hst", ["a"], {"n_trees": 25, "height": 8, "window_size": 250, "seed": 0, "margin": margin})
+        det.bootstrap(rows)
+        gap[margin] = det.score_one({"a": 1000.0}) - det.score_one(top)
+    assert gap[0.0] == 0.0  # clipped onto the bootstrap max: indistinguishable
+    assert gap[0.25] > 0.0
+
+
 def test_mad_score_matches_formula():
     det = MADDetector(["x", "k"])
     det.bootstrap([{"x": v, "k": 7.0} for v in [1.0, 2.0, 3.0, 4.0, 100.0]])
