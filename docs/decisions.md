@@ -219,3 +219,30 @@ Result:
 Flagged items, accepted and documented:
 - MAD on the Kitsune suite: −3.8 points with 5× fewer false alarms, on 14 attack windows.
 - EIF on UNSW: −2.6 points.
+
+## Unseen devices, persistence and a rank-based model (D36-D40)
+
+**D36. UNSW October batch: 5 unseen devices** (Hue bulb, Amazon Echo, Chromecast, iHome, LIFX bulb; `configs/unsw_oct.yaml`).
+- The pcaps are not listed on the UNSW page but are served at the same URL pattern; they were verified as pcapng, and a made-up date returns NoSuchKey.
+- Same rules as D30, with tz +11 (Sydney daylight time).
+- The 10-24 pcap is truncated after frame 607,503. The reader now stops at a truncated record with a warning instead of crashing. The Hue bulb's attacks fall in the lost part, so it has no test attacks.
+- On these devices, the October attack days show behaviour absent from the benign days. iHome has about 20-minute bursts every 2 hours from the first attack day on; LIFX has a 2 h silence. These raise false alarms for every model. They may be unlabelled activity of the lab setup. They are reported, not tuned away.
+
+**D37. Service and LAN-peer novelty** (`n_new_in_ports`, `n_lan_peers`, `n_new_lan_peers`; 39 features).
+- IoT devices serve few local ports and talk to few LAN hosts (the MUD idea of the dataset's authors).
+- The features alone gave small gains (EIF +7, KitNET +2 points on UNSW). The z-score models scale these sparse counts by rare training bursts. That motivated D39 and D40.
+
+**D38. Temporal hold-out** (`configs/unsw_late.yaml`): the June devices' later attack days (06-03, 06-05, 06-06). They were never inspected and were configured before download.
+
+**D39. ECOD-tail detector** ([ecod.py](../src/rad/models/ecod.py)).
+- Per feature, the two-sided empirical tail probability under the training data (Li et al., TKDE 2022), plus RobustZ's exponential tail beyond the training range. Score = top-3 mean.
+- It ranks sparse novelty counts by rarity instead of by their largest training value.
+- Exact mode stores the sorted training values. A router version would keep a quantile sketch plus the exact count of each feature's most common value (future work).
+
+**D40. Persistence and dual-channel alarms** (evaluation and alert rule, every detector alike).
+- `persistence: {k: 3}`: causal minimum over the last 3 contiguous windows. Isolated benign spikes vanish; sustained attacks keep their level from their 3rd window on.
+- That alone lost short attacks (1–2 windows; Kitsune suite 100% → 67–83%) and lowered thresholds on quiet validation days.
+- `mode: dual`: two channels, raw and 3-window minimum, each thresholded on benign validation at half the alarm budget. An alert is raised if either fires. This recovered the short attacks and kept the sustained-attack gains. It implements CLAUDE.md §5 2d's persistence smoothing in the benchmark. On a router: a ring buffer of 2 scores per device.
+- All settings were declared before their runs.
+
+**Per-attack (event) metric.** An attack episode (a contiguous run of attack windows) counts as detected if any of its windows alerts. It is reported next to per-window detection. The user's target is at least 95% detection at the benign-only threshold.
