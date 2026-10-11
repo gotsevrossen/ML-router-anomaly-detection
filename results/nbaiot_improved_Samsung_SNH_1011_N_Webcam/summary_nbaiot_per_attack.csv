@@ -1,0 +1,6 @@
+attack,hst_slog,hst_proj,autoencoder_slog,iforest_ext_slog,iforest_ext_sparse_slog,mad_tail_slog,kitnet,fusion
+gafgyt/combo,0.998,0.9985,0.999,0.999,0.994,0.999,0.999,1.0
+gafgyt/junk,0.9995,1.0,1.0,1.0,0.9965,1.0,1.0,1.0
+gafgyt/scan,0.2935,0.103,0.901,0.97,0.001,1.0,1.0,0.997
+gafgyt/tcp,0.0,0.0,0.0,0.0,0.0,0.999,0.0,0.0
+gafgyt/udp,0.0,0.0,0.0,0.0,0.0,0.9995,0.0,0.0
