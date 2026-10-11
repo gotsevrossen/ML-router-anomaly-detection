@@ -49,7 +49,8 @@ def _quantize(v: np.ndarray) -> np.ndarray:
 class RobustZDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, two_sided: bool = True,
                  tail_quantile: float = 1.0, tail_z: float = 3.0, top_k: int = 3, stats: str = "exact",
-                 window: int = 2880, n_bins: int = 64, precision: str = "float32", min_scale: float = 0.0) -> None:
+                 window: int = 2880, n_bins: int = 64, precision: str = "float32", min_scale: float = 0.0,
+                 monotone_scales: bool = False) -> None:
         if stats not in ("exact", "sketch") or precision not in ("float32", "int16"):
             raise ValueError("stats must be exact|sketch and precision float32|int16")
         if not 0.5 <= tail_quantile <= 1.0 or top_k < 1:
@@ -59,6 +60,11 @@ class RobustZDetector:
         self.tail_quantile, self.tail_z = tail_quantile, tail_z
         self.top_k = min(top_k, len(self.features))
         self.min_scale = min_scale  # D32: resolution floor on every side's scale
+        # D44: after learning, a side's scale never falls below its bootstrap value. Adaptation may widen
+        # "normal" (fewer false alarms through drift) but never makes the model more sensitive than at
+        # bootstrap; how far it may widen is the drift budget's job.
+        self.monotone_scales = monotone_scales
+        self._boot_inv: tuple[np.ndarray, np.ndarray] | None = None
         self.stats, self.precision = stats, precision
         self.n_bins = n_bins
         self.buffer: deque[np.ndarray] = deque(maxlen=window)  # stats == "exact"
@@ -78,6 +84,8 @@ class RobustZDetector:
         up = np.maximum(base, np.where(up_dev > 0, up_dev / self.tail_z, base))
         dn = np.maximum(base, np.where(dn_dev > 0, dn_dev / self.tail_z, base))
         up, dn = np.maximum(up, self.min_scale), np.maximum(dn, self.min_scale)
+        if self.monotone_scales and self._boot_inv is not None:
+            up, dn = np.maximum(up, 1.0 / self._boot_inv[0]), np.maximum(dn, 1.0 / self._boot_inv[1])
         if not self.two_sided:
             up = dn = np.maximum(up, dn)
         inv_up, inv_dn = 1.0 / up, 1.0 / dn
@@ -127,6 +135,7 @@ class RobustZDetector:
                 self.hist.add_vec(v)
             self.ext_lo, self.ext_hi = lo.copy(), hi.copy()
             self._fit_sketch()
+        self._boot_inv = (np.array(self.inv_up, dtype=float), np.array(self.inv_dn, dtype=float))
 
     def score_matrix(self, X: np.ndarray) -> np.ndarray:
         """Fast path on a float matrix in feature order (what the C port does per window)."""

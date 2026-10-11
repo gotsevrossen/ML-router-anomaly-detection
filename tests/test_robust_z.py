@@ -116,3 +116,22 @@ def test_min_scale_keeps_small_drift_of_a_steady_feature_small():
 def _slog_mad(features, min_scale):
     return build_detector("mad_floor", features, {"type": "mad", "tail_quantile": 0.999, "tail_z": 3.0,
                                                   "min_scale": min_scale, "preprocess": {"steps": ["slog"]}})
+
+
+
+@pytest.mark.parametrize("stats", ["exact", "sketch"])
+def test_monotone_scales_never_make_the_model_more_sensitive(stats):
+    """D44: learning windows that pull the median towards the training maximum must not raise scores."""
+    rng = np.random.default_rng(1)
+    boot = [{"a": float(v)} for v in rng.normal(100, 10, 500)]
+    busy = [{"a": float(v)} for v in rng.normal(125, 3, 2000)]  # near the old maximum
+    probe = {"a": 140.0}
+    for mono in (False, True):
+        det = RobustZDetector(["a"], top_k=1, stats=stats, slog=False, monotone_scales=mono)
+        det.bootstrap(boot)
+        before = det.score_one(probe)
+        for x in busy:
+            det.learn_one(x)
+        after = det.score_one(probe)
+        if mono:
+            assert after <= before + 1e-9
