@@ -24,9 +24,7 @@ def test_attack_family_strips_rate_and_path():
 
 def test_annotations_with_a_comma_inside_the_flows_field(tmp_path):
     f = tmp_path / "a.csv"
-    f.write_text("20,30,Localfeatures|Arpfeatures,ArpSpoof1L2D
-"
-                 "5,9,localIcmpPortAllIP192.168.1.1,Icmpfeatures|Localfeatures,PingOfDeath1L2D
-", encoding="utf-8")
+    f.write_text("20,30,Localfeatures|Arpfeatures,ArpSpoof1L2D\n"
+                 "5,9,localIcmpPortAllIP192.168.1.1,Icmpfeatures|Localfeatures,PingOfDeath1L2D\n", encoding="utf-8")
     iv = load_intervals(f)
     assert list(iv.attack) == ["PingOfDeath1L2D", "ArpSpoof1L2D"] and list(iv.start) == [5.0, 20.0]
