@@ -144,6 +144,7 @@ def evaluate(scores: np.ndarray, y: np.ndarray, split: np.ndarray, starts: np.nd
     row["false_alarms_per_day"] = M.false_alarms_per_day(s_t[y_t == 0], tau, window_s)
     row["detection_rate@tau"] = M.detection_rate(s_t[y_t == 1], tau)
     row["time_to_detect_s"] = M.time_to_detect(starts[test], y_t, s_t, tau)
+    row["event_detection@tau"], row["n_events"] = M.event_detection_rate(starts[test], y_t, s_t, tau, window_s)
     return row
 
 

@@ -73,6 +73,30 @@ def detection_rate(attack_scores: np.ndarray, tau: float) -> float:
     return float((s >= tau).mean()) if len(s) else float("nan")
 
 
+def attack_events(starts: np.ndarray, y: np.ndarray, window_s: float) -> list[np.ndarray]:
+    """Index arrays of attack episodes: runs of attack windows that follow each other in time."""
+    starts, y = np.asarray(starts, dtype=float), np.asarray(y)
+    idx = np.flatnonzero(y == 1)
+    if len(idx) == 0:
+        return []
+    breaks = np.flatnonzero(np.diff(starts[idx]) > window_s * 1.5) + 1
+    return np.split(idx, breaks)
+
+
+def event_detection_rate(starts: np.ndarray, y: np.ndarray, s: np.ndarray, tau: float,
+                         window_s: float) -> tuple[float, int]:
+    """Share of attack episodes with at least one alerting window while the attack runs, and the count.
+
+    This is what an operator sees: the attack was flagged (per-window detection is stricter,
+    because every 30 s of a 10-minute attack must alert to reach 100%).
+    """
+    events = attack_events(starts, y, window_s)
+    if not events:
+        return float("nan"), 0
+    s = np.asarray(s, dtype=float)
+    return float(np.mean([(s[e] >= tau).any() for e in events])), len(events)
+
+
 def time_to_detect(starts: np.ndarray, y: np.ndarray, s: np.ndarray, tau: float) -> float:
     """Seconds from the first attack window's start to the first alerting attack window (nan if never)."""
     starts, y, s = np.asarray(starts), np.asarray(y), np.asarray(s)

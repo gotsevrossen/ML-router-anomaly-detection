@@ -34,7 +34,8 @@ from rad.utils.config import load_config, save_resolved_config
 from rad.utils.log import setup_logging
 
 log = logging.getLogger(__name__)
-METRICS = ("detection_rate@tau", "test_fpr@tau", "false_alarms_per_day", "tpr@fpr=0.001", "pauc@0.01")
+METRICS = ("detection_rate@tau", "event_detection@tau", "test_fpr@tau", "false_alarms_per_day", "tpr@fpr=0.001",
+           "pauc@0.01")
 # A drop in attacks caught (percentage points) or a rise in false positives that is flagged.
 FLAG_CAUGHT_PTS = 2.0
 FLAG_FPR_REL = 0.5

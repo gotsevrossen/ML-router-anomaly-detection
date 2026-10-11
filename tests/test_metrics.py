@@ -59,3 +59,13 @@ def test_detection_rate_and_time_to_detect():
     assert M.detection_rate(s[Y == 1], 0.5) == pytest.approx(0.5)
     assert M.time_to_detect(starts, Y, s, 0.5) == 30.0  # attack starts at window 4, first alert at 5
     assert math.isnan(M.time_to_detect(starts, Y, s, 0.95))
+
+
+def test_event_detection_counts_an_attack_once_if_any_window_alerts():
+    starts = np.arange(12) * 30.0
+    y = np.array([0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0])  # three episodes: [1-3], [6-7], [9]
+    s = np.array([0, .2, .9, .2, 0, 0, .1, .1, 0, .95, 0, 0])
+    rate, n = M.event_detection_rate(starts, y, s, 0.5, 30.0)
+    assert n == 3 and rate == pytest.approx(2 / 3)
+    # A time gap (dropped windows) splits an episode even when the attack windows are adjacent in the array.
+    assert len(M.attack_events(np.array([0, 30, 300, 330.0]), np.ones(4), 30.0)) == 2
