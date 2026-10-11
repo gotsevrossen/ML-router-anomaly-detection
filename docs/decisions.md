@@ -281,3 +281,11 @@ Flagged items, accepted and documented:
 - Packet-level events on replayed benign days, with the same layout as D45.
 - Usage increase = TCP/UDP application data packets duplicated. Connection control, DNS, ARP and ICMP are left alone, because more use does not mean more failed connections or more ARP.
 - Metrics: alarms per day before the event, on the event day, and over the last 3 days; the drift-label share; windows learned.
+
+**D47. Pipeline option `calibration.above_bootstrap`:** `tau_alert ≥ nextafter(max bootstrap score)`. A window as normal as the most extreme training window never alarms. Use it with range-calibrated models only (RobustZ, ECOD); for HST, MAD and the AE it raises the threshold too far (F35, F36).
+
+**D48. Pipeline option `calibration.strict`:** alert only strictly above `tau_alert`. No measurable effect; kept off by default.
+
+**D49. RobustZ `monotone_scales` also keeps the bootstrap normal interval normal when the learned median moves.** No measurable effect on the TP-Link residual; it is kept because it removes a real failure mode (test).
+
+**D50. Phase 3c ablation** (`configs/ablation_unsw.yaml`): RobustZ, ECOD router, MAD+tail+slog, AE+slog and HST+slog × frozen, naive, gated and full × 5 UNSW June devices, with the D42–D44 and D47 settings. Results in F36.

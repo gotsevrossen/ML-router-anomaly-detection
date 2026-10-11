@@ -488,6 +488,32 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
   2. Learning that cannot make a sparse device's model stricter (median as well as scale).
   3. A better drift-vs-attack signal than volume-vs-diversity z-scores.
 
+### F35. Pipeline threshold fixes (D47–D49). [Solid on UNSW June and the drift streams]
+- **D47, alarm threshold strictly above the largest bootstrap score.**
+  - Removed the replay artefact of F33 and F34 (Samsung: 102 alarms per replay of a bootstrap day → 0; after-event alarms 16–35 → 0–1.3 per day).
+  - On real attack days it lowered false alarms (Netatmo 1.75 → 0, Samsung 11.7 → 10.3) with **unchanged** detection for RobustZ.
+  - *Limit:* it suits only range-calibrated models (RobustZ, ECOD), whose in-range scores have a known ceiling. Models with a high in-sample maximum (HST, MAD, autoencoder) get a much higher threshold and lose detection (F36). The option should be used per model.
+- **D48 (strict alerts) and D49 (bootstrap interval kept normal under median shifts):** no effect on the remaining TP-Link problem (learning adds 9–23 alarms per day after the reinstall and usage events). Root cause open: candidates are the profile cache and histogram binning on a very sparse device.
+
+### F36. Phase 3c ablation on real attack days (D50): 5 detectors × 4 update rules × 5 UNSW devices. [Solid]
+
+| Detector | Rule | False alarms/day | Attacks caught | Attack windows learned | Benign windows learned |
+|---|---|---|---|---|---|
+| RobustZ | frozen | 4.2 | 83.6% | 0 | 0 |
+| RobustZ | gated / full | 4.4 | 83.6% | **0** | 5,684 / 5,675 |
+| RobustZ | naive | 0.3 | 16.5% | 2,328 | 32,449 |
+| ECOD router | frozen | 3.7 | 79.1% | 0 | 0 |
+| ECOD router | gated / full | 3.7 | **83.3%** | **0** | about 4,865 |
+| ECOD router | naive | 0.4 | 19.1% | 2,328 | 32,449 |
+| HST | gated / full | 0 | 0% | **116 / 54** | 16,596 / 14,455 |
+| MAD+tail+slog | gated | 1.8 | 15.7% | 2 | 11,490 |
+| Autoencoder | frozen / full | 2.0 / 3.3 | 39.5% / 42.0% | 0 | 0 / 10,740 |
+
+- **Naive updating is poisoned for every detector:** all 2,328 attack windows are learned and detection falls to 0–19%.
+- **With RobustZ and ECOD, the gated and full rules commit no attack window.** ECOD *gains* 4 points from adapting, the clearest RQ2 benefit so far.
+- **The drift budget halves what a weak detector lets in** (HST: gated 116 → full 54 attack windows), but cannot make up for a detector that does not see the attack.
+- HST, MAD and the autoencoder are low here mainly because of D47's limit (F35) and because the pipeline uses plain 2-of-3 alerts, not the dual-channel rule (D40). Their benchmark numbers (F27) are the fairer comparison of detection.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)
