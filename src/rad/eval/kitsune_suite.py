@@ -88,9 +88,10 @@ def run_capture(name: str, cap: dict[str, Any], cfg: dict[str, Any]) -> dict[str
     if not packets.exists():
         parse_capture({"input": cap["pcap"], "device_name": f"{name}_device", "target_mac": choice["mac"],
                        "out_dir": str(work)})
-    windows = work / f"{name}_device_w30.parquet"
+    wtag = cfg.get("windows_tag", "")  # set when the feature code changes, so old windows are not reused
+    windows = work / f"{name}_device_w30{wtag}.parquet"
     if not windows.exists():
-        extract_windows({"input": str(packets), "name": f"{name}_device_w30", "out_dir": str(work),
+        extract_windows({"input": str(packets), "name": f"{name}_device_w30{wtag}", "out_dir": str(work),
                          "profile": {"update": "never"}})
 
     w = pd.read_parquet(windows)
@@ -105,7 +106,7 @@ def run_capture(name: str, cap: dict[str, Any], cfg: dict[str, Any]) -> dict[str
         log.warning("[%s] only %d benign windows before the attack; skipped", name, n_benign_pre)
         return {"capture": name, "skipped": f"{n_benign_pre} pre-attack windows"}
     # Profile-cache "new" features: the bootstrap windows are the clean profile, as in the pipeline.
-    extract_cfg = {"input": str(packets), "name": f"{name}_device_w30_boot{n_boot}", "out_dir": str(work),
+    extract_cfg = {"input": str(packets), "name": f"{name}_device_w30_boot{n_boot}{wtag}", "out_dir": str(work),
                    "profile": {"update": "bootstrap", "bootstrap_windows": n_boot}}
     win_boot = work / f"{extract_cfg['name']}.parquet"
     if not win_boot.exists():

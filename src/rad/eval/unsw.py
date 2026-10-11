@@ -81,7 +81,7 @@ def window_interval_labels(starts: np.ndarray, window_s: float, iv: pd.DataFrame
 
 def _parse_one(job: tuple[str, str, str, str]) -> str:
     pcap, dev_name, mac, out_dir = job
-    if not (Path(out_dir) / f"{dev_name}.parquet").exists():
+    if not (Path(out_dir) / f"{dev_name}.meta.json").exists():  # meta is written last: parquet alone may be partial
         setup_logging("WARNING")
         parse_capture({"input": pcap, "device_name": dev_name, "target_mac": mac, "out_dir": out_dir})
     return dev_name
@@ -96,7 +96,7 @@ def parse_days(cfg: dict[str, Any], devices: dict[str, str]) -> None:
         for day in cfg["days"]:
             pcap = Path(cfg["data_dir"]) / f"{day}.pcap"
             jobs.append((str(pcap), Path(day).name, mac, str(work / dev)))
-    todo = [j for j in jobs if not (Path(j[3]) / f"{j[1]}.parquet").exists()]
+    todo = [j for j in jobs if not (Path(j[3]) / f"{j[1]}.meta.json").exists()]
     log.info("Parsing %d of %d (day, device) pairs with %d workers", len(todo), len(jobs), cfg["workers"])
     with ProcessPoolExecutor(max_workers=int(cfg["workers"])) as ex:
         for name in ex.map(_parse_one, todo):
@@ -109,10 +109,12 @@ def concat_days(cfg: dict[str, Any], dev: str) -> Path:
     if out.exists():
         return out
     parts = [work / f"{Path(day).name}.parquet" for day in cfg["days"]]
-    with pq.ParquetWriter(out, pq.read_schema(parts[0])) as w:
+    tmp = out.with_suffix(".partial")  # renamed only when complete, so a crash never leaves a "done" file
+    with pq.ParquetWriter(tmp, pq.read_schema(parts[0])) as w:
         for p in parts:
             for batch in pq.ParquetFile(p).iter_batches(batch_size=262_144):
                 w.write_batch(batch)
+    tmp.replace(out)
     return out
 
 
@@ -125,7 +127,7 @@ def run_device(dev: str, mac: str, cfg: dict[str, Any]) -> dict[str, Any]:
     val_end = boot_end + cfg["split"]["validation_days"] * SECONDS_PER_DAY
     n_boot = int(round((boot_end - t0) / cfg["window_s"]))
 
-    name = f"{dev}_w30_boot{n_boot}"
+    name = f"{dev}_w30_boot{n_boot}{cfg.get('windows_tag', '')}"
     win_path = work / f"{name}.parquet"
     if not win_path.exists():
         extract_windows({"input": str(packets), "name": name, "out_dir": str(work), "window_s": cfg["window_s"],
