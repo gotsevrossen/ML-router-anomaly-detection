@@ -45,6 +45,14 @@ def _tagged(cfg: dict[str, Any], tag: str) -> dict[str, Any]:
     return c
 
 
+def _exclude(cfg: dict[str, Any], rc: dict[str, Any]) -> None:
+    """Add the suite's `exclude_features` (e.g. to reproduce an older feature set) to a window config."""
+    extra = list(rc.get("exclude_features") or [])
+    if extra:
+        feats = cfg.setdefault("features", {})
+        feats["exclude"] = list(feats.get("exclude") or []) + extra
+
+
 def run_mirai(rc: dict[str, Any], dets: dict, tag: str) -> list[pd.DataFrame]:
     fcfg = load_config(rc["features_config"])
     wtag = rc.get("windows_tag", "")
@@ -54,6 +62,7 @@ def run_mirai(rc: dict[str, Any], dets: dict, tag: str) -> list[pd.DataFrame]:
         extract_windows(fcfg)
     bcfg = _tagged(load_config(rc["baseline_config"]), tag)
     bcfg.update({"windows": str(win), "detectors": dets})
+    _exclude(bcfg, rc)
     t = run_baseline(bcfg)["table"]
     t.insert(0, "unit", "kitsune_mirai")
     return [t]
@@ -79,6 +88,7 @@ def run_kitsune_suite(rc: dict[str, Any], dets: dict, tag: str) -> list[pd.DataF
     base = _tagged(load_config(rc["config"]), tag)
     base["detectors"] = dets
     base["windows_tag"] = rc.get("windows_tag", "")
+    _exclude(base, rc)
     out = []
     for name, cap in base["captures"].items():
         r = run_capture(name, cap, base)
@@ -94,6 +104,7 @@ def run_unsw(rc: dict[str, Any], dets: dict, tag: str) -> list[pd.DataFrame]:
     base = _tagged(load_config(rc["config"]), tag)
     base["detectors"] = dets
     base["windows_tag"] = rc.get("windows_tag", "")
+    _exclude(base, rc)
     out = []
     for dev, mac in base["devices"].items():
         t = run_device(dev, mac, base)["table"]
@@ -142,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     save_resolved_config(cfg, out / "config.yaml")
     frames = []
     for ds, rc in cfg["datasets"].items():
+        rc = {**rc, "exclude_features": cfg.get("exclude_features") or []}
         if args.only and ds not in args.only:
             continue
         log.info("=== %s", ds)

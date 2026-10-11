@@ -44,7 +44,7 @@ def run(records, profile=None, commit=None, **kwargs):
 
 
 def test_feature_names_are_unique_and_in_result_order():
-    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 31
+    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 34
     (res,), _ = run([rec(T0)])
     assert tuple(res.features) == FEATURE_NAMES
 
@@ -213,3 +213,15 @@ def test_future_records_do_not_change_past_windows():
     b, _ = run(stream(2), commit=CommitPolicy("always"))
     assert a[:3] == b[:3]
     assert a[3:] != b[3:]
+
+
+def test_inbound_peers_new_peers_and_ports():
+    """D31: senders of received packets, how many the profile has never seen, and local ports hit."""
+    learn = [rec(T0 + 1, "in", peer="203.0.113.1", lport=80), rec(T0 + 2, "in", peer="192.168.1.9", lport=80)]
+    flood = [rec(T0 + 30 + i * 0.1, "in", peer=f"198.51.100.{i}", proto=17, lport=1000 + i % 3) for i in range(20)]
+    flood += [rec(T0 + 40, "in", peer="203.0.113.1", lport=80), rec(T0 + 41, "out", peer="203.0.113.1")]
+    results, _ = run(learn + flood, commit=CommitPolicy("bootstrap", bootstrap_windows=1))
+    f0, f1 = results[0].features, results[1].features
+    assert (f0["n_in_peers"], f0["n_new_in_peers"], f0["n_in_ports"]) == (2, 2, 1)  # nothing committed yet
+    assert f1["n_in_peers"] == 21 and f1["n_new_in_peers"] == 20  # 203.0.113.1 was committed in window 0
+    assert f1["n_in_ports"] == 4  # 1000, 1001, 1002 and 80; outgoing packets do not count

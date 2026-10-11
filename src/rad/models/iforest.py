@@ -137,7 +137,8 @@ class IForestDetector:
     def __init__(self, features: Sequence[str], n_estimators: int = 100, max_samples: int = 256,
                  window: int = 2880, retrain_every: int = 120, margin: float = 0.0, extra_depth: int = 4,
                  hyperplane: bool = False, hyperplane_features: int | str | None = None,
-                 tail_quantile: float = 0.999, tail_z: float = 3.0, seed: int = 0) -> None:
+                 tail_quantile: float = 0.999, tail_z: float = 3.0, min_scale: float = 0.0,
+                 seed: int = 0) -> None:
         self.features = tuple(features)
         self.n_estimators = n_estimators
         self.max_samples = max_samples
@@ -149,6 +150,7 @@ class IForestDetector:
             hyperplane_features = math.ceil(math.sqrt(len(self.features)))  # sparse EIF (D26)
         self.hyperplane_features = hyperplane_features
         self.tail_quantile, self.tail_z = tail_quantile, tail_z
+        self.min_scale = min_scale  # D32 resolution floor for the hyperplane standardisation
         self._center: np.ndarray | None = None
         self._scale: np.ndarray | None = None
         self.seed = seed
@@ -166,7 +168,7 @@ class IForestDetector:
             # Hyperplanes mix features, so put them on one robust scale first (the D23 scale).
             from rad.models.mad import tail_calibrated_scale
 
-            self._center, self._scale = tail_calibrated_scale(data, self.tail_quantile, self.tail_z)
+            self._center, self._scale = tail_calibrated_scale(data, self.tail_quantile, self.tail_z, self.min_scale)
             data = (data - self._center) / self._scale
         if self.margin > 0 or self.hyperplane:
             self.model = _HeadroomForest(self.n_estimators, self.max_samples, self.margin, self.extra_depth,

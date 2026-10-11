@@ -49,7 +49,7 @@ def _quantize(v: np.ndarray) -> np.ndarray:
 class RobustZDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, two_sided: bool = True,
                  tail_quantile: float = 1.0, tail_z: float = 3.0, top_k: int = 3, stats: str = "exact",
-                 window: int = 2880, n_bins: int = 64, precision: str = "float32") -> None:
+                 window: int = 2880, n_bins: int = 64, precision: str = "float32", min_scale: float = 0.0) -> None:
         if stats not in ("exact", "sketch") or precision not in ("float32", "int16"):
             raise ValueError("stats must be exact|sketch and precision float32|int16")
         if not 0.5 <= tail_quantile <= 1.0 or top_k < 1:
@@ -58,6 +58,7 @@ class RobustZDetector:
         self.slog, self.two_sided = slog, two_sided
         self.tail_quantile, self.tail_z = tail_quantile, tail_z
         self.top_k = min(top_k, len(self.features))
+        self.min_scale = min_scale  # D32: resolution floor on every side's scale
         self.stats, self.precision = stats, precision
         self.n_bins = n_bins
         self.buffer: deque[np.ndarray] = deque(maxlen=window)  # stats == "exact"
@@ -76,6 +77,7 @@ class RobustZDetector:
         base = np.where(base > 0, base, 1.0)
         up = np.maximum(base, np.where(up_dev > 0, up_dev / self.tail_z, base))
         dn = np.maximum(base, np.where(dn_dev > 0, dn_dev / self.tail_z, base))
+        up, dn = np.maximum(up, self.min_scale), np.maximum(dn, self.min_scale)
         if not self.two_sided:
             up = dn = np.maximum(up, dn)
         inv_up, inv_dn = 1.0 / up, 1.0 / dn

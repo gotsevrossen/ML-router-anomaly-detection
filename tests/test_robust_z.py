@@ -96,3 +96,23 @@ def test_registered_and_validated():
         RobustZDetector(["a"], stats="median-of-medians")
     with pytest.raises(ValueError):
         RobustZDetector(["a"], top_k=0)
+
+
+def test_min_scale_keeps_small_drift_of_a_steady_feature_small():
+    """D32: on a very steady feature a 2% shift must not look like an attack; a 100x jump still must."""
+    rng = np.random.default_rng(0)
+    rows = [{"size": 771 + rng.integers(-1, 2), "pkts": 100 + rng.integers(-5, 6)} for _ in range(500)]
+    for make in (lambda m: RobustZDetector(["size", "pkts"], top_k=1, min_scale=m),
+                 lambda m: _slog_mad(["size", "pkts"], m)):
+        plain, floored = make(0.0), make(0.05)
+        plain.bootstrap(rows); floored.bootstrap(rows)
+        drift = {"size": 788.0, "pkts": 100.0}
+        attack = {"size": 771.0, "pkts": 10_000.0}
+        assert floored.score_one(drift) < plain.score_one(drift)
+        assert floored.score_one(drift) < floored.score_one(attack)
+        assert floored.score_one(attack) > 0.8
+
+
+def _slog_mad(features, min_scale):
+    return build_detector("mad_floor", features, {"type": "mad", "tail_quantile": 0.999, "tail_z": 3.0,
+                                                  "min_scale": min_scale, "preprocess": {"steps": ["slog"]}})

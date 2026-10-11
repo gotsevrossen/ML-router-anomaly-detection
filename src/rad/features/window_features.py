@@ -42,6 +42,11 @@ ARP (D8)
 Context
   tod_sin, tod_cos           time of day of the window start (UTC + tz_offset_h)
   is_weekend                 1.0 on Saturday or Sunday, else 0.0
+Inbound (D31, appended after the context features)
+  n_in_peers                 distinct sender IPs of received IP packets (LAN or not)
+  n_new_in_peers             of those, how many are not in the committed profile; spoofed or
+                             randomised sources (floods) make nearly every sender new
+  n_in_ports                 distinct local destination ports of received TCP/UDP packets
 
 Distinct counts saturate at `window_set_cap`. Every profile lookup happens when
 the window closes, so a window is always compared with the profile as committed
@@ -86,6 +91,8 @@ FEATURE_NAMES: tuple[str, ...] = (
     "arp_req_out", "n_arp_targets",
     # context
     "tod_sin", "tod_cos", "is_weekend",
+    # inbound (D31; appended so the order above is unchanged)
+    "n_in_peers", "n_new_in_peers", "n_in_ports",
 )
 
 IP_PROTO_TCP, IP_PROTO_UDP, IP_PROTO_ICMP, IP_PROTO_ICMP6 = 6, 17, 1, 58
@@ -146,6 +153,8 @@ class _Window:
         self.conn_dur = _Welford()
         self.arp_req_out = 0
         self.arp_targets = CappedSet(cap)
+        self.in_peers = CappedSet(cap)
+        self.in_ports = CappedSet(cap)
 
     def count_service_port(self, port: int) -> None:
         if port in self.service_ports or len(self.service_ports) < self.cap:
@@ -155,7 +164,8 @@ class _Window:
 
     @property
     def saturated(self) -> bool:
-        sets = (self.ext_dst_ips, self.ext_prefixes, self.dst_ports, self.domains, self.arp_targets)
+        sets = (self.ext_dst_ips, self.ext_prefixes, self.dst_ports, self.domains, self.arp_targets,
+                self.in_peers, self.in_ports)
         return self.service_port_overflow > 0 or any(s.overflow for s in sets)
 
 
@@ -282,6 +292,10 @@ class WindowFeatureExtractor:
         elif proto in (IP_PROTO_ICMP, IP_PROTO_ICMP6):
             w.icmp += 1
 
+        if not out:
+            w.in_peers.add(r.peer_ip)
+            if proto in (IP_PROTO_TCP, IP_PROTO_UDP) and r.dst_port >= 0:
+                w.in_ports.add(r.dst_port)
         if out and not r.peer_is_lan:
             w.ext_dst_ips.add(r.peer_ip)
             w.ext_prefixes.add(ip_prefix(r.peer_ip))
@@ -368,6 +382,7 @@ class WindowFeatureExtractor:
             w.arp_req_out, len(w.arp_targets),
             math.sin(2 * math.pi * hour / 24), math.cos(2 * math.pi * hour / 24),
             1.0 if weekday >= 5 else 0.0,
+            len(w.in_peers), sum(1 for ip in w.in_peers if not p.has_in_peer(ip)), len(w.in_ports),
         )
         features = {name: float(v) for name, v in zip(FEATURE_NAMES, values, strict=True)}
         observation = WindowObservation(
@@ -376,6 +391,7 @@ class WindowFeatureExtractor:
             dst_ports=tuple(w.dst_ports),
             domains=tuple(w.domains),
             service_ports=tuple(w.service_ports.items()),
+            in_peers=tuple(w.in_peers),
         )
         return WindowResult(w.start, w.end, w.n_records, w.first_pkt_index, w.last_pkt_index,
                             features, observation)

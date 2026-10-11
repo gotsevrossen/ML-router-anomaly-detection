@@ -17,10 +17,10 @@ MAD_TO_SIGMA = 1.4826  # MAD of a normal distribution * 1.4826 = sigma
 MEANAD_TO_SIGMA = 1.2533  # mean absolute deviation of a normal * 1.2533 = sigma
 
 
-def tail_calibrated_scale(data: np.ndarray, tail_quantile: float | None, tail_z: float = 3.0
-                          ) -> tuple[np.ndarray, np.ndarray]:
+def tail_calibrated_scale(data: np.ndarray, tail_quantile: float | None, tail_z: float = 3.0,
+                          min_scale: float = 0.0) -> tuple[np.ndarray, np.ndarray]:
     """(median, scale) per feature: 1.4826 * MAD with the fallbacks of MADDetector, floored at
-    Q_tail(|x - median|) / tail_z when `tail_quantile` is set (D23)."""
+    Q_tail(|x - median|) / tail_z when `tail_quantile` is set (D23), and at `min_scale` (D32)."""
     med = np.median(data, axis=0)
     absdev = np.abs(data - med)
     scale = MAD_TO_SIGMA * np.median(absdev, axis=0)
@@ -29,7 +29,7 @@ def tail_calibrated_scale(data: np.ndarray, tail_quantile: float | None, tail_z:
     if tail_quantile is not None:
         tail = np.quantile(absdev, tail_quantile, axis=0) / tail_z
         scale = np.maximum(scale, np.where(tail > 0, tail, scale))
-    return med, scale
+    return med, np.maximum(scale, min_scale)
 
 
 class MADDetector:
@@ -44,15 +44,20 @@ class MADDetector:
     so a feature's own extreme training deviation maps to about `tail_z` units.
     Without it, near-constant features (MAD ~ 0) turn tiny benign fluctuations into
     astronomically large z and take over the maximum over features.
+
+    `min_scale` (D32, off by default) is a resolution floor in the detector's input units.
+    After slog, 0.05 means a change of about 5% is one unit, so a very steady device's
+    slow benign drift (packet size 771 -> 788 bytes) stays a fraction of a unit.
     """
 
     def __init__(self, features: Sequence[str], window: int = 2880, tail_quantile: float | None = None,
-                 tail_z: float = 3.0) -> None:
+                 tail_z: float = 3.0, min_scale: float = 0.0) -> None:
         if tail_quantile is not None and not 0.5 <= tail_quantile <= 1.0:
             raise ValueError("tail_quantile must be in [0.5, 1]")
         self.features = tuple(features)
         self.tail_quantile = tail_quantile
         self.tail_z = tail_z
+        self.min_scale = min_scale
         self.buffer: deque[np.ndarray] = deque(maxlen=window)
         self._median: np.ndarray | None = None
         self._scale: np.ndarray | None = None
@@ -61,7 +66,8 @@ class MADDetector:
         return np.array([x[f] for f in self.features], dtype=float)
 
     def _refresh(self) -> None:
-        self._median, self._scale = tail_calibrated_scale(np.vstack(self.buffer), self.tail_quantile, self.tail_z)
+        self._median, self._scale = tail_calibrated_scale(np.vstack(self.buffer), self.tail_quantile, self.tail_z,
+                                                           self.min_scale)
 
     def robust_z(self, x: dict[str, float]) -> np.ndarray:
         """Per-feature |robust z| (reused later for top_features explanations)."""

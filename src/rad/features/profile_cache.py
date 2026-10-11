@@ -61,6 +61,7 @@ class WindowObservation:
     dst_ports: tuple[int, ...] = ()
     domains: tuple[str, ...] = ()
     service_ports: tuple[tuple[int, int], ...] = ()  # (service port, packets)
+    in_peers: tuple[str, ...] = ()  # senders of received IP packets, LAN or not (D31)
 
 
 class ProfileCache:
@@ -71,6 +72,7 @@ class ProfileCache:
         self.ips = CappedSet(max_ips)
         self.dst_ports = CappedSet(max_ports)
         self.domains = CappedSet(max_domains)
+        self.in_peers = CappedSet(max_ips)
         self.max_ports = max_ports
         self.top_k_ports = top_k_ports
         self.service_port_counts: dict[int, int] = {}
@@ -80,6 +82,9 @@ class ProfileCache:
 
     def has_ip(self, ip: str) -> bool:
         return ip in self.ips
+
+    def has_in_peer(self, ip: str) -> bool:
+        return ip in self.in_peers
 
     def has_dst_port(self, port: int) -> bool:
         return port in self.dst_ports
@@ -95,6 +100,8 @@ class ProfileCache:
         """Learn one window's observations. Only the update rule should call this."""
         for ip in obs.dst_ips:
             self.ips.add(ip)
+        for ip in obs.in_peers:
+            self.in_peers.add(ip)
         for port in obs.dst_ports:
             self.dst_ports.add(port)
         for domain in obs.domains:
@@ -118,6 +125,8 @@ class ProfileCache:
             "dst_ports_overflow": self.dst_ports.overflow,
             "domains": len(self.domains),
             "domains_overflow": self.domains.overflow,
+            "in_peers": len(self.in_peers),
+            "in_peers_overflow": self.in_peers.overflow,
             "service_ports": len(self.service_port_counts),
             "service_ports_overflow": self.service_port_overflow,
             "top_ports": list(self._top),
