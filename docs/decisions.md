@@ -263,3 +263,9 @@ Flagged items, accepted and documented:
 - *Bug fixed:* the cumulative check compared the exact bootstrap median (anchor) with a 64-bin histogram median (fast profile). The binning error alone measured as 0.7–1.4 units of "drift", so every device was blocked at its first commit. The anchor and the calibration now use the same histogram medians; a test asserts zero drift with no commits.
 - *Result:* the full rule now commits 826–1,244 benign windows per device with RobustZ, commits 0 attack windows, and raises no notices on benign days.
 - *Open:* the boiling-frog experiment (Phase 3) is what tests whether these budgets stop slow poisoning.
+
+**D44. RobustZ `monotone_scales`** (option, used with learning).
+- A side's scale never falls below its bootstrap value.
+- RobustZ's upper scale is the distance from the median to the largest training value, so learning windows that raise the median shrank it, and the model became more sensitive than at bootstrap (Netatmo: 1.8 → 33 false alarms per day).
+- With the option, adaptation can widen "normal" but not narrow it. How far it widens is bounded by the drift budget.
+- Declared before the run that showed Netatmo back at 1.75 per day.

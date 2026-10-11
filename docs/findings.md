@@ -443,6 +443,26 @@ Design decisions are explained in [decisions.md](decisions.md) (D1–D29). The b
 
 The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design questions for the update rule, not detector questions.
 
+### F31. Making adaptation safe: scales that only grow (D44), and a fixed drift budget (D43). [Solid on UNSW June]
+- Two estimator and modelling problems stopped the full rule:
+  1. *The budget compared an exact median with a histogram median*, so binning error looked like drift and blocked the first commit on every device (fixed).
+  2. *RobustZ became more sensitive as it learned.* Its scale (median to largest training value) shrinks when learned windows pull the median up. Netatmo went from 1.8 to 33 false alarms per day.
+- With histogram-consistent budgets (capped-mean, 2× benign drift) and `monotone_scales` (no scale below its bootstrap value), the full rule learns 961–1,244 benign windows per device, commits **0** attack windows, raises no false drift notices, and false alarms match frozen (5.0 vs 4.8 per day; Netatmo back to 1.75).
+- Learning did not *reduce* false alarms on these days. All remaining ones on Samsung and WEMO switch fall in one benign event: the network coming back after the capture gap (ARP replies, failed TCP, new domains), which no past data could have prepared for.
+
+### F32. RQ4 on real data: "suspected attack" is precise, "benign drift" is rarely recognised. [Solid on UNSW June]
+- Alerted windows, 5 devices, RobustZ full rule:
+
+  | Truth | → suspected_attack | → suspected_benign_drift |
+  |---|---|---|
+  | Attack | 1,510 | 207 |
+  | Benign | 45 | 10 |
+  | Post-attack guard | 30 | 59 |
+
+- Precision of "suspected attack": 95%.
+- Only 18% of benign alarms are labelled drift: the reconnection event raises *diversity* features (new domains, failed TCP, ARP replies), which the volume-vs-diversity heuristic reads as an attack.
+- This is a documented failure mode of the heuristic (CLAUDE.md: report where it fails). A restart signature (many devices at once, right after a capture/network gap) is a candidate refinement.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)
