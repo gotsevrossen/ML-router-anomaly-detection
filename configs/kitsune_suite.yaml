@@ -1,0 +1,43 @@
+# Independent test (D29): the front-runner detectors, frozen, on the 8 Kitsune captures never used before.
+# Run:  python -m rad.eval.kitsune_suite --config configs/kitsune_suite.yaml
+# Detector settings are copied unchanged from baseline_kitsune_mirai_robust_z.yaml / _improved.yaml.
+# Rules fixed before any run: device = MAC in the most attack-labelled frames; split = first 50% / next 30%
+# of the device's pre-attack windows for bootstrap / validation; time-of-day features excluded (short captures).
+
+experiment: kitsune_suite
+seed: 0
+out_dir: results
+work_dir: data/interim/kitsune_suite
+
+captures:
+  active_wiretap: {pcap: "data/raw/kitsune+network+attack+dataset/active_wiretap/Active Wiretap_pcap.pcapng.gz", labels: "data/raw/kitsune+network+attack+dataset/active_wiretap/Active Wiretap_labels.csv.gz"}
+  arp_mitm: {pcap: "data/raw/kitsune+network+attack+dataset/arp_mitm/ARP MitM_pcap.pcapng.gz", labels: "data/raw/kitsune+network+attack+dataset/arp_mitm/ARP MitM_labels.csv.gz"}
+  fuzzing: {pcap: "data/raw/kitsune+network+attack+dataset/fuzzing/Fuzzing_pcap.pcapng.gz", labels: "data/raw/kitsune+network+attack+dataset/fuzzing/Fuzzing_labels.csv.gz"}
+  os_scan: {pcap: "data/raw/kitsune+network+attack+dataset/os_scan/OS Scan_pcap.pcapng.gz", labels: "data/raw/kitsune+network+attack+dataset/os_scan/OS Scan_labels.csv.gz"}
+  ssdp_flood: {pcap: "data/raw/kitsune+network+attack+dataset/ssdp_flood/SSDP Flood_pcap.pcap.gz", labels: "data/raw/kitsune+network+attack+dataset/ssdp_flood/SSDP Flood_labels.csv.gz"}
+  ssl_renegotiation: {pcap: "data/raw/kitsune+network+attack+dataset/ssl_renegotiation/SSL Renegotiation_pcap.pcap.gz", labels: "data/raw/kitsune+network+attack+dataset/ssl_renegotiation/SSL Renegotiation_labels.csv.gz"}
+  syn_dos: {pcap: "data/raw/kitsune+network+attack+dataset/syn_dos/SYN DoS_pcap.pcap.gz", labels: "data/raw/kitsune+network+attack+dataset/syn_dos/SYN DoS_labels.csv.gz"}
+  video_injection: {pcap: "data/raw/kitsune+network+attack+dataset/video_injection/Video Injection_pcap.pcapng.gz", labels: "data/raw/kitsune+network+attack+dataset/video_injection/Video Injection_labels.csv.gz"}
+
+split:
+  bootstrap_frac: 0.5
+  validation_frac: 0.3
+  min_bootstrap: 20
+  min_validation: 10
+
+features:
+  exclude: [tod_sin, tod_cos, is_weekend]
+
+threshold:
+  alarms_per_day: 1
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16}
+  mad_tail_slog: {type: mad, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 1200, batch_size: 32, seed: 0, preprocess: {steps: [slog]}}
+  kitnet_windows: {type: kitnet, max_autoencoder_size: 10, fm_frac: 0.1}
+  hst: {n_trees: 25, height: 10, window_size: 20, seed: 0}   # reference; window_size <= min_bootstrap
