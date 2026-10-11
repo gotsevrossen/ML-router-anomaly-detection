@@ -1,0 +1,35 @@
+# RQ3 boiling-frog experiment (D45). Fixed before the first run (2026-10-11 ~16:40).
+# Run: python -m rad.eval.poison --config configs/poison_unsw.yaml [--variants vol_a05 ...]
+experiment: poison_unsw
+seed: 0
+out_dir: results
+work_dir: data/interim/poison_unsw
+data_config: configs/unsw.yaml
+devices: [samsung_camera, tplink_plug]
+day_offset_h: 0   # UNSW daily pcaps run 00:00-24:00 UTC; time-of-day features still use tz +10
+benign_days: [benign/18-05-28, benign/18-05-29, benign/18-05-30, benign/18-05-31]
+
+variants:   # final_rate R is reached on the attack day; chaff day k runs at R (1 + alpha)^(k - N - 1)
+  vol_a05: {kind: volumetric, final_rate: 10.0, alpha: 0.05, n_days: 14}   # CLAUDE.md range
+  vol_a30: {kind: volumetric, final_rate: 10.0, alpha: 0.30, n_days: 14}   # accelerated: starts ~40x lower
+  beh_a05: {kind: behavioral, final_rate: 0.2, alpha: 0.05, n_days: 14}
+  beh_a30: {kind: behavioral, final_rate: 0.2, alpha: 0.30, n_days: 14}
+
+update_rules: [frozen, naive, gated, full]
+
+features:
+  exclude: [is_weekend]
+detector: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05, monotone_scales: true}
+
+calibration:
+  alarms_per_day: 1
+  admit_quantile: 0.9
+
+pipeline:   # as adapt_unsw_cal3 (D42-D44)
+  quarantine: {t_delay_s: 86400, purge_k: 10, taint_on_alert: false}
+  budget: {b_daily: 3.0, b_total: 6.0, calibrate_factor: 2.0, measure: capped_mean, cap: 3.0}
+  anchor: {update_every_s: null}
+  disambiguation: {tau_div: 3.0}
+  alert_k: 2
+  alert_n: 3
+  top_k: 3
