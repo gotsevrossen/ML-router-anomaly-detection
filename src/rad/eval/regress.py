@@ -106,8 +106,10 @@ def run_unsw(rc: dict[str, Any], dets: dict, tag: str) -> list[pd.DataFrame]:
     base["windows_tag"] = rc.get("windows_tag", "")
     _exclude(base, rc)
     out = []
+    from rad.eval.unsw import capture_gap_starts
+    gaps = capture_gap_starts(base) if base.get("drop_capture_gaps", True) else None
     for dev, mac in base["devices"].items():
-        t = run_device(dev, mac, base)["table"]
+        t = run_device(dev, mac, base, gaps)["table"]
         t.insert(0, "unit", dev)
         out.append(t)
     return out

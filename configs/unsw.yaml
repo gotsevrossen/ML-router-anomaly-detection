@@ -30,6 +30,8 @@ split:
   bootstrap_days: 2
   validation_days: 1
 guard_after_s: 120
+# Added after the first run (D30 deviation): windows where no device has any packet are capture gaps.
+drop_capture_gaps: true
 
 features:
   exclude: [is_weekend]

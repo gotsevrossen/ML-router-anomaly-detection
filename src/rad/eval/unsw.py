@@ -125,7 +125,27 @@ def concat_days(cfg: dict[str, Any], dev: str) -> Path:
     return out
 
 
-def run_device(dev: str, mac: str, cfg: dict[str, Any]) -> dict[str, Any]:
+def capture_gap_starts(cfg: dict[str, Any]) -> set[float]:
+    """Window starts at which *no* configured device has a single packet: the lab capture was off.
+
+    Consecutive daily pcaps do not always join up (e.g. 14 h missing between the last
+    benign and the first attack file), and the window extractor fills a span with empty
+    windows. A silent device is a real signal, but all devices silent at once is a
+    recording gap; those windows are dropped. The rule uses traffic presence only, never
+    labels (D30, deviation found on the first held-out run).
+    """
+    ws = float(cfg["window_s"])
+    busy: set[float] = set()
+    lo, hi = np.inf, -np.inf
+    for dev in cfg["devices"]:
+        ts = pq.read_table(concat_days(cfg, dev), columns=["ts"]).column("ts").to_numpy()
+        k = np.unique(np.floor(ts / ws)) * ws
+        busy.update(k.tolist())
+        lo, hi = min(lo, k.min()), max(hi, k.max())
+    return {float(t) for t in np.arange(lo, hi + ws, ws)} - busy
+
+
+def run_device(dev: str, mac: str, cfg: dict[str, Any], gaps: set[float] | None = None) -> dict[str, Any]:
     work = Path(cfg["work_dir"]) / dev
     packets = concat_days(cfg, dev)
     first_ts = pq.read_table(packets, columns=["ts"]).column("ts")[0].as_py()
@@ -140,6 +160,16 @@ def run_device(dev: str, mac: str, cfg: dict[str, Any]) -> dict[str, Any]:
         extract_windows({"input": str(packets), "name": name, "out_dir": str(work), "window_s": cfg["window_s"],
                          "tz_offset_h": cfg["tz_offset_h"], **cfg.get("extract", {}),
                          "profile": {"update": "bootstrap", "bootstrap_windows": n_boot}})
+    if cfg.get("drop_capture_gaps", True):
+        gaps = capture_gap_starts(cfg) if gaps is None else gaps
+        full = pd.read_parquet(win_path)
+        keep = ~full["window_start"].isin(gaps)
+        if (~keep).any():
+            log.info("[%s] dropping %d capture-gap windows", dev, int((~keep).sum()))
+            win_path = work / f"{name}_nogap.parquet"
+            full[keep].to_parquet(win_path, index=False)
+            meta = Path(work / f"{name}.meta.json").read_text(encoding="utf-8")
+            win_path.with_suffix(".meta.json").write_text(meta, encoding="utf-8")
     w = pd.read_parquet(win_path, columns=["window_start"])
     starts = w["window_start"].to_numpy()
     iv = load_intervals(Path(cfg["annotations_dir"]) / f"{mac.replace(':', '').lower()}.csv")
@@ -187,8 +217,9 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     save_resolved_config(cfg, out / "config.yaml")
     rows, per, info = [], [], []
+    gaps = capture_gap_starts(cfg) if cfg.get("drop_capture_gaps", True) else None
     for dev, mac in devices.items():
-        r = run_device(dev, mac, cfg)
+        r = run_device(dev, mac, cfg, gaps)
         t = r.pop("table"); t.insert(0, "device", dev); rows.append(t)
         p = r.pop("per_attack"); p.insert(0, "device", dev); per.append(p)
         info.append(r)

@@ -28,3 +28,17 @@ def test_annotations_with_a_comma_inside_the_flows_field(tmp_path):
                  "5,9,localIcmpPortAllIP192.168.1.1,Icmpfeatures|Localfeatures,PingOfDeath1L2D\n", encoding="utf-8")
     iv = load_intervals(f)
     assert list(iv.attack) == ["PingOfDeath1L2D", "ArpSpoof1L2D"] and list(iv.start) == [5.0, 20.0]
+
+
+def test_capture_gaps_are_windows_where_no_device_has_traffic(tmp_path, monkeypatch):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from rad.eval import unsw
+    files = {}
+    for dev, ts in {"a": [0.0, 31.0, 125.0], "b": [5.0, 61.0, 130.0]}.items():
+        files[dev] = tmp_path / f"{dev}.parquet"
+        pq.write_table(pa.table({"ts": ts}), files[dev])
+    monkeypatch.setattr(unsw, "concat_days", lambda cfg, dev: files[dev])
+    gaps = unsw.capture_gap_starts({"window_s": 30.0, "devices": {"a": "", "b": ""}})
+    assert gaps == {90.0}  # [90, 120) has no packet from either device; [120, 150) does
