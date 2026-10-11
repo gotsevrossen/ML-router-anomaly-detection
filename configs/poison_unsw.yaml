@@ -12,6 +12,8 @@ benign_days: [benign/18-05-28, benign/18-05-29, benign/18-05-30, benign/18-05-31
 variants:   # final_rate R is reached on the attack day; chaff day k runs at R (1 + alpha)^(k - N - 1)
   vol_a05: {kind: volumetric, final_rate: 10.0, alpha: 0.05, n_days: 14}   # CLAUDE.md range
   vol_a30: {kind: volumetric, final_rate: 10.0, alpha: 0.30, n_days: 14}   # accelerated: starts ~40x lower
+  volk_a05: {kind: volumetric, final_rate: 10.0, alpha: 0.05, n_days: 14, target_ip: known}   # added 2026-10-11 ~15:55,
+  volk_a30: {kind: volumetric, final_rate: 10.0, alpha: 0.30, n_days: 14, target_ip: known}   # before any run of them
   beh_a05: {kind: behavioral, final_rate: 0.2, alpha: 0.05, n_days: 14}
   beh_a30: {kind: behavioral, final_rate: 0.2, alpha: 0.30, n_days: 14}
 

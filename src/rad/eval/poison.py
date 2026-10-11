@@ -113,7 +113,12 @@ def main(argv: list[str] | None = None) -> int:
                 att = phase == "attack"
                 keep = att | (phase == "")
                 ev, _ = M.event_detection_rate(t[keep], att[keep].astype(int), alert[keep].astype(float), 0.5, ws)
-                benign = (phase == "") & (t >= d0 + 3 * SECONDS_PER_DAY)
+                # Benign = no injection, after validation, and not within guard_after_s of a burst end
+                # (k-of-n smoothing keeps an alert for a window or two after the burst stops).
+                after = np.zeros(len(t), dtype=bool)
+                for e in sched["end"].to_numpy():
+                    after |= (t + ws > e) & (t < e + float(data["guard_after_s"]))
+                benign = (phase == "") & ~after & (t >= d0 + 3 * SECONDS_PER_DAY)
                 days_b = benign.sum() * ws / SECONDS_PER_DAY
                 rows.append({"device": dev, "variant": vname, "rule": rule,
                              "chaff_detected_first": float(per_day.chaff_detected.iloc[0]),

@@ -41,7 +41,7 @@ class FrogConfig:
     n_days: int = 14                # chaff days before the real attack
     burst_s: float = 300.0          # active seconds per hour
     burst_minute: int = 15
-    target_ip: str = "203.0.113.50"
+    target_ip: str = "203.0.113.50"  # "known": the device's most used external destination (stealthier)
 
 
 def local_days(df: pd.DataFrame, day_offset_h: float) -> list[pd.DataFrame]:
@@ -87,6 +87,9 @@ def build_stream(benign: pd.DataFrame, cfg: FrogConfig, day_offset_h: float = 0.
     out_rows = benign[benign["direction"] == "out"]
     dev = {"mac": out_rows["src_mac"].mode().iat[0], "gw_mac": out_rows["dst_mac"].mode().iat[0],
            "ip": out_rows["src_ip"].mode().iat[0]}
+    if cfg.target_ip == "known":  # hide in traffic to a destination the profile already knows
+        ext = out_rows[~out_rows["peer_is_lan"].astype(bool)]
+        cfg = FrogConfig(**{**cfg.__dict__, "target_ip": ext["peer_ip"].mode().iat[0]})
     first_day = math.floor((days[0]["ts"].iat[0] + day_offset_h * 3600) / SECONDS_PER_DAY)
 
     def day_start(k: int) -> float:  # UTC start of local day k (0 = first original day)
