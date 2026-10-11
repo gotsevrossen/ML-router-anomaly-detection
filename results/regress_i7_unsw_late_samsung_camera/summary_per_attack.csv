@@ -1,0 +1,10 @@
+attack,family,windows,robust_z_router,mad_tail_slog,autoencoder_slog,iforest_ext_sparse_slog,hst_slog,kitnet,ecod_tail
+Snmp100L2D2W,Snmp,20,1.0,1.0,1.0,1.0,1.0,0.0,1.0
+Snmp10L2D2W,Snmp,20,1.0,1.0,0.95,1.0,0.9,0.0,0.95
+Snmp1L2D2W,Snmp,21,0.9047619047619048,0.9047619047619048,0.0,0.7142857142857143,0.0,0.0,0.0
+TcpSynDevice100W2D,TcpSynDevice,21,1.0,1.0,1.0,1.0,0.9047619047619048,1.0,1.0
+TcpSynDevice10W2D,TcpSynDevice,21,1.0,1.0,1.0,1.0,0.9047619047619048,1.0,1.0
+TcpSynDevice1W2D,TcpSynDevice,21,1.0,1.0,1.0,1.0,0.8571428571428571,0.9523809523809523,1.0
+TcpSynReflection100W2D2W,TcpSynReflection,21,1.0,1.0,1.0,1.0,0.9047619047619048,1.0,1.0
+TcpSynReflection10W2D2W,TcpSynReflection,20,1.0,1.0,1.0,1.0,0.95,1.0,1.0
+TcpSynReflection1W2D2W,TcpSynReflection,21,1.0,1.0,1.0,1.0,0.9047619047619048,1.0,1.0
