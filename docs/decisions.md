@@ -73,3 +73,13 @@ With plain min-max scaling and clipping, a value far beyond anything seen in boo
 This keeps the single-device scope (CLAUDE.md §2). Kitsune normally watches a whole network segment, which is a difference from its paper setting. The device's packets go to the vendored netStat/KitNET unmodified, with fields mapped exactly as Kitsune's own scapy parser maps them. KitNET trains on the packets of the bootstrap windows: the first 10% learn the feature map and the rest train the autoencoders. It is frozen afterwards, as Kitsune does by default. Kitsune-py runs at about 300–500 packets/s here, so its window scores are cached on disk. RQ1 should compare against Kitsune's published C++ throughput, not this Python port.
 
 **D17. N-BaIoT is a per-row secondary benchmark on its own 115 features.** It has no timestamps or pcaps, so window features, false alarms/day and time to detect do not apply. Benign rows in file order are split 50/20/30 into bootstrap, validation and test. 2,000 rows are sampled (seeded) from each attack file. The threshold is set for FPR 1e-3 on validation.
+
+## Phase 2: continual learning
+
+**D18. Quarantine semantics** ([continual/quarantine.py](../src/rad/continual/quarantine.py)). These choices define what "committed" means in every RQ2/RQ3 result.
+- *Order per window:* first release queued windows that are due (older than `t_delay_s`), then score the new window, then gate it. A window is always scored before anything learns from it.
+- *Gating:* `score < tau_admit` → quarantined; `tau_admit ≤ score < tau_alert` → rejected (never learned, no alert); `score ≥ tau_alert` → alert, rejected.
+- *The alert used for gating is the raw per-window score*, not the k-of-n smoothed alert of 2d. Gating should be conservative: one suspicious window is enough to stop learning, even if it is not enough to page the user.
+- *On alert:* the `purge_k` most recently queued windows are purged immediately (the pre-attack ramp-up). With `taint_on_alert` (default, the literal reading of rule 4: "only if no alert fired during their stay") every other queued window is marked and purged when it falls due. A single alert therefore discards up to `t_delay_s` of queued learning. That is the price of the guarantee, and it is what RQ2 measures.
+- *The profile cache is committed in the same step as the detector*, from the same queued item.
+- *Bounded:* the queue holds at most `ceil(t_delay_s / window_s) + 1` windows (a static ring buffer in C). If irregular spacing ever fills it, the oldest item is released early and counted in `forced_releases`.

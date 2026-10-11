@@ -1,1 +1,1 @@
-"""Placeholder: implemented in a later phase (see CLAUDE.md section 5)."""
+"""Continual-learning update rules wrapped around any Detector (Phase 2, the novelty)."""
