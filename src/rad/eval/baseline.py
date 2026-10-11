@@ -246,7 +246,21 @@ def run_baseline(cfg: dict[str, Any]) -> dict[str, Any]:
     persist = cfg.get("persistence")  # D40: causal k-window minimum, applied to every detector alike
     if persist:
         k = int(persist["k"])
-        all_scores = {n: M.persist_min(s, starts, window_s, k) for n, s in all_scores.items()}
+        if persist.get("mode", "min") == "dual":
+            # Two alarm channels with half the false-alarm budget each, both set on benign validation:
+            # the raw score (strong, short attacks) and the k-window minimum (weak, sustained ones).
+            # Alert if either crosses its own threshold; folded into one score so every metric applies.
+            val = split == "validation"
+            half = float(cfg["threshold"]["alarms_per_day"]) / 2
+            fused = {}
+            for n, s in all_scores.items():
+                p = M.persist_min(s, starts, window_s, k)
+                t_raw = M.threshold_for_alarm_rate(s[val], half, window_s)
+                t_per = M.threshold_for_alarm_rate(p[val], half, window_s)
+                fused[n] = np.maximum(s - t_raw, p - t_per)
+            all_scores = fused
+        else:
+            all_scores = {n: M.persist_min(s, starts, window_s, k) for n, s in all_scores.items()}
     table_rows = []
     taus: dict[str, float] = {}
     for name, scores in all_scores.items():

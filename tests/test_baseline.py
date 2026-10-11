@@ -123,3 +123,13 @@ def test_label_loader_accepts_headered_files(tmp_path):
     p = tmp_path / "l.csv"
     p.write_text(",x\n0,0\n1,1\n2,1\n")
     assert load_frame_labels(p).tolist() == [0, 1, 1]
+
+
+@pytest.mark.parametrize("mode", ["min", "dual"])
+def test_persistence_modes_still_catch_a_sustained_scan(baseline_inputs, mode):
+    """D40: both persistence modes keep a 30-window scan detected and the event caught."""
+    cfg = {**baseline_inputs, "persistence": {"k": 3, "mode": mode},
+           "detectors": {k: v for k, v in baseline_inputs["detectors"].items() if k != "kitsune"}}
+    table = run_baseline(cfg)["table"].set_index("detector")
+    assert (table["event_detection@tau"] == 1.0).all()
+    assert (table["detection_rate@tau"] >= 0.9).all()
