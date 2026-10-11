@@ -31,6 +31,10 @@ datasets:
     config: configs/unsw_oct.yaml
     detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}}
     windows_tag: "_v39"
+  unsw_late:
+    config: configs/unsw_late.yaml
+    detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}}
+    windows_tag: "_v39"
 
 detectors:
   robust_z_router: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05}
