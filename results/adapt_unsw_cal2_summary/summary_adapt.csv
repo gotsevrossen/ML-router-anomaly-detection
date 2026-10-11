@@ -1,0 +1,11 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,final_committed,final_purged,final_blocked
+wemo_motion,robust_z_router,full,0.0,0.7083333333333334,24,0.5705765407554672,503,0,1082,0,1082,3013,0
+wemo_motion,hst_slog_proj,full,0.0,0.0,24,0.0,503,52,3304,0,3356,10,0
+wemo_switch,robust_z_router,full,8.854727132974636,0.8333333333333334,18,0.7777777777777778,378,0,1063,0,1063,3020,0
+wemo_switch,hst_slog_proj,full,0.0,0.1111111111111111,18,0.031746031746031744,378,0,2937,0,2937,320,0
+samsung_camera,robust_z_router,full,11.737854581023802,0.6363636363636364,33,0.6034732272069464,691,0,961,0,961,4186,0
+samsung_camera,hst_slog_proj,full,3.2865992826866646,0.2727272727272727,33,0.12156295224312591,691,0,2077,0,2077,1200,0
+tplink_plug,robust_z_router,full,2.6890756302521006,1.0,21,0.9523809523809523,441,0,1244,0,1244,3797,0
+tplink_plug,hst_slog_proj,full,0.0,0.0,21,0.0,441,0,1469,2,1469,180,1683
+netatmo_camera,robust_z_router,full,33.25432999088423,1.0,15,0.9523809523809523,315,0,826,0,826,3154,0
+netatmo_camera,hst_slog_proj,full,2.625341841385597,1.0,15,0.9428571428571428,315,0,1203,0,1203,2946,0
