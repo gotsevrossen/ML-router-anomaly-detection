@@ -29,6 +29,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from rad.eval.baseline import select_features
@@ -65,6 +66,24 @@ def resolve_config(cfg: dict[str, Any]) -> dict[str, Any]:
     return resolved
 
 
+def calibrate_budgets(days: dict[int, list[list[float]]], factor: float) -> tuple[float, float]:
+    """Drift budgets from benign data only (D42): `factor` x the largest day-to-day median shift
+    (daily) and x the largest shift of any benign day from the first day (total), in the drift
+    budget's units (sum over features of |median shift| / bootstrap IQR). Needs >= 2 days."""
+    from rad.continual.profile_stats import robust_scale
+
+    keys = sorted(k for k, v in days.items() if len(v) >= 60)  # skip slivers of a day
+    if len(keys) < 2:
+        raise ValueError("budget calibration needs at least two benign days")
+    mats = {k: np.asarray(days[k], dtype=float) for k in keys}
+    scale = robust_scale(np.vstack([mats[k] for k in keys[:-1]]))
+    med = {k: np.median(m, axis=0) for k, m in mats.items()}
+    shift = lambda a, b: float(np.sum(np.abs(med[a] - med[b]) / scale))  # noqa: E731
+    daily = max(shift(a, b) for a, b in zip(keys, keys[1:]))
+    total = max(shift(k, keys[0]) for k in keys[1:])
+    return factor * daily, factor * max(total, daily)
+
+
 def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
     cfg = resolve_config(cfg)
     run = run_metadata()
@@ -87,10 +106,14 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
     window_s = float(cfg["window_s"])
     profile_cache = ProfileCache(**cfg["profile_cache"])
     extractor = WindowFeatureExtractor(profile_cache, window_s=window_s, **cfg["extractor"])
-    pcfg = PipelineConfig.from_dict(cfg["pipeline"])
+    pipe_dict = {**cfg["pipeline"], "budget": dict(cfg["pipeline"].get("budget") or {})}
+    budget_factor = pipe_dict["budget"].pop("calibrate_factor", None)  # D42: budgets from benign day-to-day drift
+    pcfg = PipelineConfig.from_dict(pipe_dict)
 
     boot_rows: list[dict[str, float]] = []
     val_scores: list[float] = []
+    benign_days: dict[int, list[list[float]]] = {}  # day index -> bootstrap/validation rows (D42)
+    t_first: float | None = None
     fast = None
     pipe: DevicePipeline | None = None
     n = 0
@@ -103,6 +126,9 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
             x = {f: res.features[f] for f in features}
             in_boot = res.start < t_boot if t_boot is not None else n < n_boot
             in_val = res.start < t_val if t_val is not None else n < n_boot + n_val
+            if in_val:  # bootstrap or validation: benign by assumption
+                t_first = res.start if t_first is None else t_first
+                benign_days.setdefault(int((res.start - t_first) // 86_400), []).append([x[f] for f in features])
             if in_boot:
                 boot_rows.append(x)
                 profile_cache.commit(res.observation)  # bootstrap is assumed clean (CLAUDE.md §8)
@@ -117,6 +143,10 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
                                                                 float(cfg["calibration"]["alarms_per_day"]),
                                                                 float(cfg["calibration"]["admit_quantile"]))
                     thresholds = {"tau_admit": tau_admit, "tau_alert": tau_alert}
+                    if budget_factor is not None:
+                        b_daily, b_total = calibrate_budgets(benign_days, float(budget_factor))
+                        pcfg.budget = {**pcfg.budget, "b_daily": b_daily, "b_total": b_total}
+                        thresholds.update({"b_daily": b_daily, "b_total": b_total})
                     log.info("Calibrated on %d validation windows: tau_admit=%.4f tau_alert=%.4f",
                              len(val_scores), tau_admit, tau_alert)
                     pipe = DevicePipeline(cfg["device"], features, factory, boot_rows, pcfg, tau_admit, tau_alert,

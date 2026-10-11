@@ -166,3 +166,15 @@ def test_end_to_end_on_synthetic_device(tmp_path, rule):
         assert not cache.has_dst_port(23)  # the telnet scan never reached the profile cache
     else:
         assert res["pipeline"].profile_cache.has_dst_port(23)  # naive updating learns the attack
+
+
+def test_budget_calibration_from_benign_days():
+    """D42: budgets are factor x the observed benign day-to-day (and from-day-0) median shift."""
+    import numpy as np
+
+    from rad.pipeline.run import calibrate_budgets
+    rng = np.random.default_rng(0)
+    days = {d: (rng.normal(size=(200, 2)) + [0.1 * d, 0]).tolist() for d in range(3)}
+    b_daily, b_total = calibrate_budgets(days, 2.0)
+    assert 0.0 < b_daily <= b_total
+    assert b_total < 2.0 * 0.6  # two days of 0.1-sigma drift in one feature stays well under 1 IQR unit
