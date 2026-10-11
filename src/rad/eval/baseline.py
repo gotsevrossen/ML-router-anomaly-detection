@@ -91,19 +91,26 @@ def run_window_detector(name: str, params: dict, features: list[str], rows: list
     return scores, {"fit_s": fit_s, "score_ms_per_window": score_ms}
 
 
-def run_kitsune(cfg: dict[str, Any], windows: pd.DataFrame, params: dict, cache_dir: Path
-                ) -> tuple[np.ndarray, dict[str, float]]:
-    """Per-window Kitsune scores, cached on disk: Kitsune-py is slow (~500 packets/s) and deterministic.
+def kitsune_cache_path(cfg: dict[str, Any], windows: pd.DataFrame, params: dict, cache_dir: Path) -> Path:
+    """Cache file for raw Kitsune window scores.
 
-    The cache key covers the packet file (path, size, mtime), the window spans, the
-    bootstrap length, the parameters and the vendored code version.
+    The key covers the packet file (path, size, mtime), the window spans, the
+    bootstrap length, the parameters, the vendored code version and the cache format.
     """
     spans = list(zip(windows["first_pkt_index"].tolist(), windows["last_pkt_index"].tolist()))
-    n_boot = int(cfg["split"]["bootstrap_windows"])
     st = Path(cfg["packets"]).stat()
-    key_src = json.dumps([str(Path(cfg["packets"]).resolve()), st.st_size, st.st_mtime_ns, spans, n_boot,
-                          sorted(params.items()), "kitsune-py@7c8ea51", "raw-max-rmse"])
-    cache = cache_dir / f"kitsune_{hashlib.sha1(key_src.encode()).hexdigest()[:16]}.npy"
+    key_src = json.dumps([str(Path(cfg["packets"]).resolve()), st.st_size, st.st_mtime_ns, spans,
+                          int(cfg["split"]["bootstrap_windows"]), sorted(params.items()), "kitsune-py@7c8ea51",
+                          "raw-max-rmse"])
+    return cache_dir / f"kitsune_{hashlib.sha1(key_src.encode()).hexdigest()[:16]}.npy"
+
+
+def run_kitsune(cfg: dict[str, Any], windows: pd.DataFrame, params: dict, cache_dir: Path
+                ) -> tuple[np.ndarray, dict[str, float]]:
+    """Per-window Kitsune scores, cached on disk: Kitsune-py is slow (100-500 packets/s) and deterministic."""
+    spans = list(zip(windows["first_pkt_index"].tolist(), windows["last_pkt_index"].tolist()))
+    n_boot = int(cfg["split"]["bootstrap_windows"])
+    cache = kitsune_cache_path(cfg, windows, params, cache_dir)
     if cache.exists():
         log.info("Kitsune: using cached scores %s", cache)
         return squash_array(np.load(cache)), {"fit_s": float("nan"), "score_ms_per_window": float("nan")}
