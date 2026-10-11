@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
     data = load_config(cfg["data_config"])  # the rad.eval.unsw config: days, devices, annotations, tz
     ws = float(data.get("window_s", 30))
     gaps = sorted(capture_gap_starts(data))
+    tag = "_" + "_".join(args.only) if args.only else ""  # parallel per-device runs write separate summaries
     out = Path(cfg["out_dir"]) / f"{cfg['experiment']}_summary"
     out.mkdir(parents=True, exist_ok=True)
     save_resolved_config(cfg, out / "config.yaml")
@@ -107,9 +108,9 @@ def main(argv: list[str] | None = None) -> int:
                 rows.append({"device": dev, "detector": det_name, "rule": rule, **ev,
                              "final_committed": s.get("final_committed", np.nan),
                              "final_purged": s.get("final_purged", 0), "final_blocked": s.get("final_blocked", 0)})
-                pd.DataFrame(rows).to_csv(out / "summary_adapt.csv", index=False)
+                pd.DataFrame(rows).to_csv(out / f"summary_adapt{tag}.csv", index=False)
     df = pd.DataFrame(rows)
-    with open(out / "summary_adapt.md", "w", encoding="utf-8") as fh:
+    with open(out / f"summary_adapt{tag}.md", "w", encoding="utf-8") as fh:
         fh.write(f"# {cfg['experiment']}\n\n")
         for metric in ("false_alarms_per_day", "event_detection", "window_detection", "attack_committed",
                        "benign_committed", "drift_notices"):

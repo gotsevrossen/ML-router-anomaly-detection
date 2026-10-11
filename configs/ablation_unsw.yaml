@@ -1,0 +1,33 @@
+# Phase 3c ablation on real attack days (D50): 5 detectors x 4 update rules x 5 UNSW June devices, with
+# D42-D44 budgets/scales and the D47 threshold. Fixed before running (2026-10-11).
+# Run: python -m rad.eval.adapt --config configs/adapt_unsw.yaml
+experiment: ablation_unsw
+seed: 0
+out_dir: results
+data_config: configs/unsw.yaml        # devices, days, split (2 d bootstrap, 1 d validation), labels, gaps
+
+features:
+  exclude: [is_weekend]
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05, monotone_scales: true}
+  ecod_router: {type: ecod, top_k: 3, tail_z: 3.0, min_scale: 0.05, stats: sketch, window: 5760}
+  mad_tail_slog: {type: mad, window: 5760, tail_quantile: 0.999, tail_z: 3.0, min_scale: 0.05, preprocess: {steps: [slog]}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, seed: 0, preprocess: {steps: [slog]}}
+  hst_slog: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog]}}
+
+update_rules: [frozen, naive, gated, full]
+
+calibration:
+  alarms_per_day: 1        # tau_alert on benign validation (CLAUDE.md §8)
+  admit_quantile: 0.9
+  above_bootstrap: true   # D47, declared before running
+
+pipeline:
+  quarantine: {t_delay_s: 86400, purge_k: 10, taint_on_alert: false}   # 24 h; an alert purges only the 10 windows before it
+  budget: {b_daily: 3.0, b_total: 6.0, calibrate_factor: 2.0, measure: capped_mean, cap: 3.0}   # D42 + D43
+  anchor: {update_every_s: null}      # frozen anchor
+  disambiguation: {tau_div: 3.0}
+  alert_k: 2
+  alert_n: 3
+  top_k: 3
