@@ -154,10 +154,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--config", required=True)
     ap.add_argument("--device", help="run another N-BaIoT device with the same config (sibling folder of "
                                      "device_dir); the experiment name gets the device appended")
+    ap.add_argument("--seed", type=int, help="override the sampling seed (which attack rows are drawn); "
+                                            "the experiment name gets _s<seed> appended")
     ap.add_argument("--log-level", default="INFO")
     args = ap.parse_args(argv)
     setup_logging(args.log_level)
     cfg = load_config(args.config)
+    if args.seed is not None:
+        cfg["seed"] = args.seed
+        cfg["experiment"] = f"{cfg['experiment']}_s{args.seed}"
     if args.device:
         cfg["device_dir"] = str(Path(cfg["device_dir"]).parent / args.device)
         cfg["experiment"] = f"{cfg['experiment']}_{args.device}"

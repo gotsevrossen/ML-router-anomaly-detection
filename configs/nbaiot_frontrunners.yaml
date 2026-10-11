@@ -1,0 +1,27 @@
+# Robustness check of the front-runner detectors on N-BaIoT (tie-safe threshold, D28).
+# Run per seed and device:  python -m rad.eval.nbaiot --config configs/nbaiot_frontrunners.yaml --seed 1 --device Ecobee_Thermostat
+# The seed changes which 2,000 rows are drawn from each attack file; benign splits stay in file order.
+# Detector settings are copied unchanged from nbaiot_robust_z.yaml / nbaiot_improved.yaml (frozen).
+
+experiment: nbaiot_frontrunners
+seed: 0
+out_dir: results
+device_dir: C:/Users/gotse/OneDrive/Desktop/AI reserch data/detection+of+iot+botnet+attacks+n+baiot/Danmini_Doorbell
+
+split:
+  bootstrap_frac: 0.5
+  validation_frac: 0.2
+attack_rows_per_file: 2000
+
+threshold:
+  target_fpr: 0.001
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16}
+  mad_tail_slog: {type: mad, window: 50000, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, buffer: 50000, seed: 0, preprocess: {steps: [slog]}}
+  kitnet: {max_autoencoder_size: 10, fm_frac: 0.1}
