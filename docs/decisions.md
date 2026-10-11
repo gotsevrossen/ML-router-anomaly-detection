@@ -106,3 +106,18 @@ This keeps the single-device scope (CLAUDE.md §2). Kitsune normally watches a w
 - *Smoothing and threat.* `alert` is k-of-n smoothed (default 2 of 3) over raw window alerts. `threat_score = persistence × magnitude`: the share of the last n windows at or above `tau_alert`, times `(score − tau_admit) / (1 − tau_admit)` clipped to [0, 1]. Gating itself uses the raw per-window alert (D18).
 - *`update_decision` is the decision when the window arrives* (quarantined or rejected; committed under `naive`; rejected under `frozen`, where nothing is learned). The final outcome (committed, purged or blocked) is known only later and is kept in the quarantine log and the run summary.
 - *Known rough edge.* A feature whose bootstrap IQR is tiny (e.g. `conn_dur_mean` on the Mirai device) gets z-scores in the thousands. That is correct by the definition but makes `top_features` noisy. Revisit in Phase 3, for example with a scale floor tuned on benign data.
+
+## Branch fix/iforest-mad-extrapolation: making IForest and MAD work on both datasets
+
+**How these fixes were developed (read before citing the numbers).** Both failures were diagnosed on N-BaIoT Danmini doorbell and the Kitsune Mirai device, whose test results had already been seen. So those two are *development* sets for these fixes. All new parameter values were fixed before any run with them, and none was tuned on attack data. The Isolation Forest needed two attempts on the development set (headroom alone, then Extended IF). The evidence that the fixes generalise is the eight N-BaIoT devices that were never inspected (held-out), run once each with the same configuration (`configs/nbaiot_fixes.yaml`).
+
+**D22. Isolation Forest variants** (`margin`, `hyperplane` in [iforest.py](../src/rad/models/iforest.py)). The sklearn version is unchanged and kept as the textbook baseline.
+- *Headroom (`margin: 0.25`, `extra_depth: 4`).* Textbook IF draws each split between the node's training min and max, so a point far beyond the range shares a leaf with the most extreme training point. On Danmini, every attack row was outside the training range in at least one feature, yet every attack scored below the highest benign validation score. Headroom draws splits from the node range widened by 25% on each side; the 4 extra levels make up for splits that fall outside the data. On its own this barely helped on Danmini (0% → 0.15% detected).
+- *Why headroom was not enough:* a typical attack row is out of range in only 23 of 115 features, so an axis-parallel split looks at a relevant feature only about 20% of the time.
+- *Extended IF (`hyperplane: true`, Hariri et al. 2019).* Each split is a random hyperplane over all features, with the same headroom on the projected range, so every split sees every feature. Features are first standardised with the D23 tail-calibrated robust scale, so no single feature's units dominate the projection.
+- *Cost.* About 10× slower to score than sklearn in this numpy version (≈1 ms/row with 115 features), and each node stores one normal vector of F floats. That is fine for 28 window features on a router; it needs measuring in Phase 4.
+
+**D23. MAD with a tail-calibrated scale floor** (`tail_quantile: 0.999`, `tail_z: 3.0`): `scale_j ≥ Q_0.999(|x_j − median_j|) / 3` on training data.
+- 22 of 115 N-BaIoT features have near-zero MAD, so their tiny benign fluctuations produced robust z around 1e36 and took over the maximum over features.
+- With the floor, a feature's own extreme training deviation maps to about 3 units, so "how unusual" is comparable across features.
+- This changes MAD from CLAUDE.md's literal formula, so the original stays the default and the floor is opt-in.
