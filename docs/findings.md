@@ -381,6 +381,54 @@ Design decisions are explained in [decisions.md](decisions.md) (D1–D29). The b
 - Score time per 30 s window: RobustZ 3–6 µs, MAD 6–11 µs, AE 8–12 µs, HST 40–70 µs, EIF 0.1–0.3 ms, KitNET 0.2–0.5 ms.
 - Per-packet feature update: **2.6 µs per packet** in Python, about 380k packets/s, measured on 500k packets of the busiest UNSW device.
 
+### F25. Unseen devices (UNSW October, D36): RobustZ is the most stable model; the feature changes transfer partially. [Solid: held out]
+- Per-window attacks caught, reference → i3:
+
+  | Model | Reference | i3 |
+  |---|---|---|
+  | RobustZ | 87.6% | 87.7% |
+  | KitNET | 74.8% | 80.6% |
+  | EIF | 44% | 53% |
+  | HST | 29% | 49% |
+  | AE | 77% | 70% |
+  | MAD | 56% | 35% |
+
+- ARP spoofing was already caught 100% by RobustZ and KitNET on these devices, so D34 adds nothing there (it did lift HST from 37% to 68%).
+- Plain MAD breaks down on the Amazon Echo (about 2,470 false alarms per day). RobustZ's top-3 mean does not.
+- False alarms are higher on the October attack days for every model; see D36 (unlabelled periodic activity on iHome, a 2 h silence on LIFX).
+
+### F26. Persistence is the biggest single step toward the 95% target. [Solid on the hold-outs; D40]
+- Several missed low-rate attacks (UDP floods, SNMP, ping of death) *were* visible: one new LAN peer, new senders, a new local port. But single benign windows like that occur about 3 times a day, the same rate as the alarm budget.
+- Persistence separates them: benign novelty lasts one window, an attack's lasts its whole duration.
+- Dual-channel alarms (raw OR 3-window minimum, half the budget each), per-attack detection i5 → i7:
+
+  | Dataset | Results |
+  |---|---|
+  | Temporal hold-out (unsw_late, never inspected) | ECOD 94→100%; RobustZ, KitNET 94→97%; AE 71→97% |
+  | UNSW June | ECOD 76→96%; RobustZ 80→94%; EIF 69→94%; AE 68→93% |
+  | Unseen October devices | MAD 39→98%, AE 61→98%, RobustZ 94→96%, HST 46→94% |
+  | Kitsune suite, Mirai | 100% kept |
+
+- Cost: false alarms rise, roughly ×1–2 on UNSW (2–12 per day) and much more on the October attack days (see D36).
+
+### F27. Where the ≥95% per-attack target stands (i7, benign-only thresholds). [Solid]
+
+| Dataset | ≥95% | Below |
+|---|---|---|
+| Mirai, Kitsune suite | all 7 models | – |
+| Temporal hold-out | ECOD 100, RobustZ 97.1, KitNET 97.1, AE 97.1 | MAD 94.3, EIF 94.3, HST 57 |
+| UNSW June (development) | ECOD 95.5 | RobustZ 93.7, EIF 93.7, AE 92.8, MAD 86.5, KitNET 81.1 |
+| UNSW October (unseen) | MAD 97.8, AE 97.8, RobustZ 95.7 | ECOD 93.5, HST 93.5, KitNET 89.1, EIF 87.0 |
+| N-BaIoT (per row, no persistence) | – | RobustZ 88.9, ECOD 84.4, MAD 82.1, KitNET 79.9 |
+
+- RobustZ is the only model at ≥93.5% on every window dataset. ECOD is the strongest on UNSW but needs a sketch version to fit a router (exact mode is 12 MB on N-BaIoT).
+- The remaining misses are mainly UDP floods and SNMP on two June devices.
+
+### F28. ECOD (D39) adds a strong, different model to the portfolio. [Preliminary]
+- On window data with persistence it is the best on UNSW and the temporal hold-out.
+- On N-BaIoT: 84.4% caught at 0.23% FPR (above the 0.1% target), pAUC@0.01 95.8.
+- Scoring 0.03 ms per row. Exact-mode state (sorted training values) is too big for a router; a quantile-sketch variant is needed.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)
@@ -393,7 +441,8 @@ Each one was found by a test or by inspecting data, and fixed with a regression 
 5. **Run metadata.** It was originally recorded at the end of a run, so edits made during a run marked it "dirty". Now it's captured at the start, and generated outputs (results/, data/) are excluded from the dirty check.
 6. **Capture gaps in multi-day data (D30).** Concatenated daily pcaps left a 14 h gap that became empty windows.
 7. **Shared detector configs lost per-dataset buffer sizes (D35).** Found by the regression suite.
-8. **Kitsune score cache.** It stored squashed values. It was converted exactly to raw RMSE maxima, with no ties introduced.
+8. **Truncated capture files (D36).** A pcapng cut off mid-record crashed the reader; it now keeps every complete frame.
+9. **Kitsune score cache.** It stored squashed values. It was converted exactly to raw RMSE maxima, with no ties introduced.
 
 ---
 
