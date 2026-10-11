@@ -194,3 +194,28 @@ Result:
 - A drop of more than 2 points in attacks caught, or a rise of more than 50% in false positives, is flagged.
 - The reference variant reproduces the pre-D31 feature set by excluding the new features (`exclude_features`), so it can be checked against the committed results.
 - The detector portfolio (RobustZ, MAD+tail+slog, AE+slog, sparse Extended IF, HST+slog, KitNET) is improved and reported together, so several options remain for testbed experiments.
+
+**D34. ARP-spoofing features** (`arp_rep_in`, `n_arp_conflicts`, appended; 36 features).
+- On UNSW, ARP spoofing was caught at most 45% of the time. The window features counted only ARP requests the device *sends*, not the forged replies it *receives*.
+- `n_arp_conflicts` counts sender IPs of received ARP packets claimed by a MAC other than the profile's committed binding, or by two or more MACs within one window.
+- The binding map is bounded (`max_ips`) and is committed only through the update rule, like every profile set.
+- *Status:* designed after seeing UNSW, so UNSW is now a development set for D34. Confirmation needs the next new dataset.
+
+**D35. Detector buffers must cover the bootstrap.**
+- The regression suite first ran one shared detector block, and MAD and Extended IF then kept their default 2,880-row buffers. On N-BaIoT (about 25k bootstrap rows) and UNSW (5,760 windows) they learned only the latest part of the bootstrap. MAD fell to 21% on N-BaIoT, against 82% in its own config.
+- `detector_overrides` per dataset now set the buffers: 50,000 for N-BaIoT, as in its original configs, and 5,760 for UNSW.
+- This was a configuration bug, not a tuning choice.
+- On UNSW it raised MAD from 44% to 72% caught and Extended IF from 45% to 50%.
+
+**Regression outcome (ref → i3 = D31 + D32 + D34)**, mean attacks caught at the validation threshold:
+
+| Dataset | Change |
+|---|---|
+| UNSW | MAD 72→85, RobustZ 70→81, KitNET 70→79, AE 58→69, HST 2→12, EIF 50→47 |
+| Kitsune suite | 5 of 6 models up (KitNET 96→100, HST 91→97). MAD 93→89, but with false alarms down from 795 to 160 per day; RobustZ false alarms down from 894 to 180 per day. |
+| Mirai | Unchanged (100%); RobustZ's single false alarm removed |
+| N-BaIoT | D31 and D34 do not apply. D32 is neutral, or +5.6 points for EIF. |
+
+Flagged items, accepted and documented:
+- MAD on the Kitsune suite: −3.8 points with 5× fewer false alarms, on 14 attack windows.
+- EIF on UNSW: −2.6 points.
