@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed
+poison_unsw_tplink_plug_volk_a05_naive,naive,robust_z,43197,0.5598028518341717,0.5809454597456116,0.016223613609695858,0.02428316602135891,11,61,0,0,43186,8,3,43197

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+poison_unsw_samsung_camera_volk_a30_frozen,frozen,robust_z,43200,0.4978902304835114,0.5809414823309249,0.5543242161638141,0.8747345923046524,510,510,0,0,42690,455,55,43200

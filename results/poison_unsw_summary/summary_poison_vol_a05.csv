@@ -1,0 +1,9 @@
+device,variant,rule,chaff_detected_first,chaff_detected_last,chaff_committed,attack_window_det,attack_event_det,false_alarms_per_day,drift_notices
+samsung_camera,vol_a05,frozen,0.041666666666666664,0.0,0,0.0,0.0,34.339622641509436,0
+samsung_camera,vol_a05,naive,0.0125,0.0,3360,0.0,0.0,31.245283018867923,0
+samsung_camera,vol_a05,gated,0.041666666666666664,0.0,0,0.0,0.0,29.88679245283019,0
+samsung_camera,vol_a05,full,0.041666666666666664,0.0,0,0.0,0.0,34.339622641509436,0
+tplink_plug,vol_a05,frozen,0.9,0.9,0,0.9,1.0,0.0,0
+tplink_plug,vol_a05,naive,0.0125,0.0,3360,0.0,0.0,0.6038210551143959,0
+tplink_plug,vol_a05,gated,0.9,0.9,0,0.9041666666666667,1.0,5.962732919254659,0
+tplink_plug,vol_a05,full,0.9,0.9,0,0.9,1.0,0.0,2

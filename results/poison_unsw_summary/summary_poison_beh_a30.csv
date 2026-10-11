@@ -1,0 +1,9 @@
+device,variant,rule,chaff_detected_first,chaff_detected_last,chaff_committed,attack_window_det,attack_event_det,false_alarms_per_day,drift_notices
+samsung_camera,beh_a30,frozen,0.041666666666666664,0.9,0,0.9,1.0,34.339622641509436,0
+samsung_camera,beh_a30,naive,0.041666666666666664,0.0,3360,0.0625,0.125,31.39622641509434,0
+samsung_camera,beh_a30,gated,0.041666666666666664,0.9,1671,0.9,1.0,30.867924528301888,0
+samsung_camera,beh_a30,full,0.041666666666666664,0.9,1658,0.9,1.0,34.339622641509436,0
+tplink_plug,beh_a30,frozen,0.0,0.9,0,0.9,1.0,0.0,0
+tplink_plug,beh_a30,naive,0.0,0.0,3360,0.0,0.0,0.6038210551143959,0
+tplink_plug,beh_a30,gated,0.0,0.9,711,0.9,1.0,2.2643289566789844,0
+tplink_plug,beh_a30,full,0.0,0.9,214,0.9,1.0,0.8302539507822942,1

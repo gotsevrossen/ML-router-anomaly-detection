@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+poison_unsw_samsung_camera_beh_a30_full,full,robust_z,43200,0.4978902304835114,0.5809414823309249,0.5543242161638141,0.8747345923046524,1130,1132,0,52,42070,469,661,25598,6295,11234,73
