@@ -23,6 +23,7 @@ The schedule and every injected window are returned for evaluation (labels only)
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 
@@ -31,6 +32,7 @@ import pandas as pd
 
 SECONDS_PER_DAY = 86_400
 TCP_SYN = 0x02
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -82,6 +84,12 @@ def build_stream(benign: pd.DataFrame, cfg: FrogConfig, day_offset_h: float = 0.
     schedule: one row per injected burst: start, end, day (1 = first chaff day), phase (chaff|attack), rate.
     """
     days = [d for d in local_days(benign, day_offset_h) if len(d)]
+    # Replaying a partial capture day (e.g. a pcap that stops after 13 h) would insert hours of silence
+    # every cycle, which the detectors rightly flag. Only days whose packets span >= 90% of 24 h are used.
+    full = [d for d in days if d["ts"].iat[-1] - d["ts"].iat[0] >= 0.9 * SECONDS_PER_DAY]
+    if len(full) < len(days):
+        log.warning("dropping %d partial capture day(s) from the stream", len(days) - len(full))
+    days = full
     if len(days) < 3:
         raise ValueError("need at least 3 benign days (2 bootstrap + 1 validation)")
     out_rows = benign[benign["direction"] == "out"]
