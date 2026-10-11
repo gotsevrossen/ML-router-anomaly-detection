@@ -1,0 +1,11 @@
+attack,robust_z_router,mad_tail_slog,autoencoder_slog,kitnet
+gafgyt/combo,1.0,1.0,0.998,1.0
+gafgyt/junk,1.0,1.0,0.9975,1.0
+gafgyt/scan,1.0,1.0,0.0075,1.0
+gafgyt/tcp,1.0,0.0005,0.001,0.004
+gafgyt/udp,1.0,0.0015,0.0015,0.0035
+mirai/ack,1.0,1.0,1.0,1.0
+mirai/scan,1.0,1.0,0.0,1.0
+mirai/syn,0.9995,0.9995,0.673,0.9995
+mirai/udp,1.0,1.0,1.0,1.0
+mirai/udpplain,1.0,1.0,1.0,1.0

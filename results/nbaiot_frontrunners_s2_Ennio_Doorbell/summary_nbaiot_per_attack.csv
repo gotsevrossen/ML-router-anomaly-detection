@@ -1,0 +1,6 @@
+attack,robust_z_router,mad_tail_slog,autoencoder_slog,kitnet
+gafgyt/combo,1.0,1.0,0.996,1.0
+gafgyt/junk,1.0,1.0,0.9975,1.0
+gafgyt/scan,1.0,1.0,0.13,1.0
+gafgyt/tcp,1.0,0.0015,0.0005,0.0015
+gafgyt/udp,1.0,0.001,0.0,0.001

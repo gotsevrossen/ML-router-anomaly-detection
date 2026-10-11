@@ -1,0 +1,9 @@
+capture,skipped,device,pre_attack_windows,windows,bootstrap,validation,test_benign,test_attack
+active_wiretap,22 pre-attack windows,,,,,,,
+arp_mitm,21 pre-attack windows,,,,,,,
+fuzzing,34 pre-attack windows,,,,,,,
+os_scan,,00:a0:de:f1:88:6e,88.0,105.0,44.0,26.0,32.0,3.0
+ssdp_flood,,c8:00:84:2a:39:51,79.0,82.0,39.0,23.0,17.0,3.0
+ssl_renegotiation,,ac:9b:0a:fc:2d:8e,40.0,78.0,20.0,12.0,8.0,38.0
+syn_dos,,c8:00:84:2a:39:51,101.0,106.0,50.0,30.0,21.0,5.0
+video_injection,,00:a0:de:f1:88:6e,61.0,72.0,30.0,18.0,13.0,11.0
