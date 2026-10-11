@@ -1,0 +1,6 @@
+attack,iforest,iforest_headroom,iforest_extended,mad,mad_tail,hst,autoencoder
+gafgyt/combo,0.0,0.0,0.999,0.0,0.999,0.0015,0.998
+gafgyt/junk,0.0,0.0,1.0,0.0,1.0,0.0,1.0
+gafgyt/scan,0.0,0.0,1.0,0.0,1.0,0.001,0.8195
+gafgyt/tcp,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+gafgyt/udp,0.0,0.0,0.0,0.0,0.0,0.0,0.0

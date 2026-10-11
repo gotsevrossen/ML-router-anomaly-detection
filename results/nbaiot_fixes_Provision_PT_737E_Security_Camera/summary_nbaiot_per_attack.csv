@@ -1,0 +1,11 @@
+attack,iforest,iforest_headroom,iforest_extended,mad,mad_tail,hst,autoencoder
+gafgyt/combo,0.0,0.0,1.0,0.0,1.0,0.0,1.0
+gafgyt/junk,0.0,0.001,1.0,0.0,0.9935,0.0,1.0
+gafgyt/scan,0.0005,0.0015,1.0,0.0,1.0,0.0005,1.0
+gafgyt/tcp,0.0,0.001,0.0015,0.0,0.0015,0.0,0.0015
+gafgyt/udp,0.0,0.0,0.0005,0.0,0.0,0.0,0.0005
+mirai/ack,0.0,0.497,1.0,0.0,1.0,0.0,1.0
+mirai/scan,0.0,0.0,1.0,0.0,1.0,0.0,1.0
+mirai/syn,0.0,0.0,1.0,0.0,1.0,0.0,1.0
+mirai/udp,0.0,0.457,1.0,0.0,1.0,0.0,1.0
+mirai/udpplain,0.003,0.4755,1.0,0.0,1.0,0.408,1.0
