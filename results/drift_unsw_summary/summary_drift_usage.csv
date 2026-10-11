@@ -1,0 +1,13 @@
+device,event,rule,fa_before,fa_event_day,fa_after_last3,drift_share,committed_after,drift_notices
+samsung_camera,usage,frozen,102.0,0,37.0,0.8648648648648649,0,0
+samsung_camera,usage,naive,95.0,0,32.0,0.9114583333333334,16920,0
+samsung_camera,usage,gated,102.0,0,36.0,0.8672985781990521,9289,0
+samsung_camera,usage,full,102.0,0,37.0,0.8648648648648649,8965,0
+tplink_plug,usage,frozen,0.0,41,42.333333333333336,0.19678714859437751,0,0
+tplink_plug,usage,naive,0.0,0,0.0,,16920,0
+tplink_plug,usage,gated,0.0,41,42.333333333333336,0.19678714859437751,8880,0
+tplink_plug,usage,full,0.0,41,42.333333333333336,0.19678714859437751,2090,2
+wemo_switch,usage,frozen,0.0,0,0.0,,0,0
+wemo_switch,usage,naive,0.0,0,0.0,,16919,0
+wemo_switch,usage,gated,0.0,0,0.0,,11602,0
+wemo_switch,usage,full,0.0,0,0.0,,11509,0

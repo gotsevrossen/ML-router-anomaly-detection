@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+drift_unsw_samsung_camera_firmware_frozen,frozen,robust_z,20160,0.4978902304835114,0.5809414823309249,0.5543242161638141,0.8747345923046524,218,230,0,0,19942,173,45,20160
