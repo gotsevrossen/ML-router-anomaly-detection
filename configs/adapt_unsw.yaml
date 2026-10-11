@@ -1,0 +1,28 @@
+# RQ2/RQ3 on real days (D41): update rules on the UNSW June devices. Fixed before the first run (2026-10-11 ~15:20).
+# Run: python -m rad.eval.adapt --config configs/adapt_unsw.yaml
+experiment: adapt_unsw
+seed: 0
+out_dir: results
+data_config: configs/unsw.yaml        # devices, days, split (2 d bootstrap, 1 d validation), labels, gaps
+
+features:
+  exclude: [is_weekend]
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05}
+  hst_slog_proj: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog]}}
+
+update_rules: [frozen, naive, gated, full]
+
+calibration:
+  alarms_per_day: 1        # tau_alert on benign validation (CLAUDE.md §8)
+  admit_quantile: 0.9      # tau_admit = 90th percentile of validation scores
+
+pipeline:
+  quarantine: {t_delay_s: 86400, purge_k: 10, taint_on_alert: true}   # CLAUDE.md default: 24 h
+  budget: {b_daily: 3.0, b_total: 6.0}
+  anchor: {update_every_s: null}      # frozen anchor
+  disambiguation: {tau_div: 3.0}
+  alert_k: 2
+  alert_n: 3
+  top_k: 3

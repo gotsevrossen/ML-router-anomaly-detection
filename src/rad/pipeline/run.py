@@ -81,6 +81,9 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
         return build_detector(det_name, features, det_params)
 
     n_boot, n_val = int(cfg["split"]["bootstrap_windows"]), int(cfg["split"]["validation_windows"])
+    # Multi-day data (rad.eval.adapt): split by time, and skip capture-gap windows (no device had traffic).
+    t_boot, t_val = cfg["split"].get("boot_end_ts"), cfg["split"].get("val_end_ts")
+    skip = set(float(t) for t in (cfg.get("skip_starts") or []))
     window_s = float(cfg["window_s"])
     profile_cache = ProfileCache(**cfg["profile_cache"])
     extractor = WindowFeatureExtractor(profile_cache, window_s=window_s, **cfg["extractor"])
@@ -95,11 +98,15 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
     with open(out / "windows.jsonl", "w", encoding="utf-8") as fh:
         records = read_records(cfg["packets"], 65_536)
         for res in extractor.run(records):
+            if res.start in skip:
+                continue
             x = {f: res.features[f] for f in features}
-            if n < n_boot:
+            in_boot = res.start < t_boot if t_boot is not None else n < n_boot
+            in_val = res.start < t_val if t_val is not None else n < n_boot + n_val
+            if in_boot:
                 boot_rows.append(x)
                 profile_cache.commit(res.observation)  # bootstrap is assumed clean (CLAUDE.md §8)
-            elif n < n_boot + n_val:
+            elif in_val:
                 if fast is None:
                     fast = factory()
                     fast.bootstrap(boot_rows)
