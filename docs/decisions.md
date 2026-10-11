@@ -152,3 +152,45 @@ Learning buffers are not counted, because the C port would use the D19 sketches 
 - *Remaining false positives are drift, not the scores.* 0.37% of Danmini's later benign test rows fall outside the bootstrap range, so any detector frozen after bootstrap that asks "outside the training range?" has that floor. Continual learning through the quarantine (D18) is what addresses it.
 
 **D28. Tie-safe thresholds** (`metrics.threshold_for_fpr`). The old rule cut at the floor(fpr·n)-th highest validation score. When several validation scores tied at that cut, all of them alerted, so the real validation false-positive rate could far exceed the target. Discrete features make ties common: many benign rows sit exactly at a training extreme, so they score exactly z = 3. The cut now moves to the next distinct score whenever ties would break the budget. Every detector benefits. Results produced before this fix overstate false positives wherever ties occurred.
+
+## Robustness checks, new data and the regression rule (D29-D33)
+
+**D29. Independent test on the unused Kitsune captures** ([kitsune_suite.py](../src/rad/eval/kitsune_suite.py)). Rules fixed before the run:
+- The monitored device is the MAC involved in the most attack-labelled frames. Labels pick the device; they never train or threshold anything.
+- The device's benign windows before the first attack window are split 50% bootstrap and 30% validation; the rest is test. A capture is skipped if that gives fewer than 20 bootstrap or 10 validation windows. That rule skipped active wiretap, ARP MitM and fuzzing (21–34 pre-attack windows).
+- Time-of-day features are excluded (captures are under 1 h).
+
+Result:
+- The frozen models caught the attacks on all 5 usable captures (video injection: 45–82%).
+- False alarms were high on the steady devices: benign traffic drifted slowly out of a 10–20 minute bootstrap range (packet size 771 → 788 bytes, UDP share 0.76 → 0.72). These were not labelling errors.
+- This motivated D32 and is evidence for the continual-learning premise (RQ2).
+- These captures are now development data for anything changed after D29.
+
+**D30. UNSW IoT attack traces as the next held-out dataset** ([unsw.py](../src/rad/eval/unsw.py), `configs/unsw.yaml`).
+- Source: Hamza et al., ACM SOSR 2019, MIT-0 licence, iotanalytics.unsw.edu.au/attack-data.html. Real consumer devices, one pcap per day, per-device annotation intervals.
+- Used: 5 devices (WEMO motion sensor, WEMO switch, Samsung camera, TP-Link plug, Netatmo camera); benign days 2018-05-28 to 05-31; attack days 06-01 and 06-02.
+- 9 attack families at 1, 10 and 100 packets/s: ARP spoofing, TCP SYN, SYN reflection, Smurf, SNMP, SSDP, UDP, ping of death.
+- Fixed before the first run:
+  - split by time: 2 days bootstrap, 1 day validation, the rest test;
+  - labels: a window is attack if it overlaps an annotated interval;
+  - benign windows ending within 120 s after an attack are excluded;
+  - `tz_offset_h = 10`; `is_weekend` excluded (weekday bootstrap, weekend attack day);
+  - detector settings copied from earlier configs.
+- `rad.eval.baseline` accepts per-window labels (`window_labels`) for interval-annotated data.
+
+**D31. Inbound features** (`n_in_peers`, `n_new_in_peers`, `n_in_ports`, appended to `FEATURE_NAMES`).
+- The artefact check showed that N-BaIoT's Gafgyt floods come from never-seen (spoofed or randomised) sources. Our window features only counted *destinations* the device contacts, so a flood *into* the device was invisible except through volume.
+- `n_new_in_peers` counts senders absent from the committed profile, using a new bounded `in_peers` set. Like the other profile sets, it is committed only through the update rule.
+- `n_in_ports` counts the local ports that received traffic (floods and scans aimed at the device).
+- Feature count is now 34. Window files from before D31 lack these columns and are re-extracted under a `windows_tag`.
+
+**D32. Resolution floor `min_scale`** (RobustZ, MAD, Extended IF standardisation; off by default).
+- The scale is floored at `min_scale` in the detector's input units. With slog, 0.05 means a change of about 5% is one robust unit.
+- Without it, a very steady device's tiny training spread turns ordinary slow drift into many units (D29).
+- The value 0.05 was declared before any run with it. An attack's shift (×10 to ×1000, i.e. 2.3–6.9 slog units) is unaffected.
+
+**D33. Regression rule** ([regress.py](../src/rad/eval/regress.py)).
+- Every change is re-run on every dataset (Kitsune Mirai, 9 N-BaIoT devices, 5 Kitsune captures, UNSW) and compared with the previous reference.
+- A drop of more than 2 points in attacks caught, or a rise of more than 50% in false positives, is flagged.
+- The reference variant reproduces the pre-D31 feature set by excluding the new features (`exclude_features`), so it can be checked against the committed results.
+- The detector portfolio (RobustZ, MAD+tail+slog, AE+slog, sparse Extended IF, HST+slog, KitNET) is improved and reported together, so several options remain for testbed experiments.
