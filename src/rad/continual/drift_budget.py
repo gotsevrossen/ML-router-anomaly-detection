@@ -32,6 +32,19 @@ log = logging.getLogger(__name__)
 NOTICE = "possible_slow_poisoning_or_major_change"
 
 
+def drift_measure(median: np.ndarray, reference: np.ndarray, scale: np.ndarray, measure: str = "sum",
+                  cap: float = 3.0) -> float:
+    """Profile shift in IQR units.
+
+    sum          CLAUDE.md 2b: sum_j |m_j - ref_j| / IQR_j
+    capped_mean  D43: mean_j min(|m_j - ref_j| / IQR_j, cap). On real devices the sum is dominated by
+                 near-constant features (tiny IQR), so calibrated budgets ranged from 0.03 to 475 across
+                 five devices; capping each feature and averaging gives one comparable unit.
+    """
+    r = np.abs(np.asarray(median) - np.asarray(reference)) / scale
+    return float(np.sum(r)) if measure == "sum" else float(np.mean(np.minimum(r, cap)))
+
+
 @dataclass(frozen=True)
 class DriftNotice:
     t: float
@@ -46,13 +59,17 @@ class DriftBudget:
 
     def __init__(self, features: Sequence[str], bootstrap_rows: Sequence[dict[str, float]], b_daily: float,
                  b_total: float, day_s: float = 86_400.0, fast_half_life_days: float = 1.0,
-                 n_bins: int = 64, profile: RobustProfile | None = None) -> None:
+                 n_bins: int = 64, profile: RobustProfile | None = None, measure: str = "sum",
+                 cap: float = 3.0) -> None:
         """`profile` may be shared with the disambiguation; the budget then owns adding commits to it."""
         self.profile = profile or RobustProfile(features, bootstrap_rows, fast_half_life_days, day_s, n_bins)
         self.features = self.profile.features
         self.anchor_median = self.profile.bootstrap_median.copy()
         self.scale = self.profile.scale
         self.b_daily, self.b_total = float(b_daily), float(b_total)
+        if measure not in ("sum", "capped_mean"):
+            raise ValueError("measure must be sum|capped_mean")
+        self.measure, self.cap = measure, float(cap)
         self.day_s = float(day_s)
         self._day: int | None = None
         self._day_start_median = self.fast.median()
@@ -67,7 +84,7 @@ class DriftBudget:
         return self.profile.hist
 
     def shift(self, median: np.ndarray, reference: np.ndarray) -> float:
-        return float(np.sum(np.abs(median - reference) / self.scale))
+        return drift_measure(median, reference, self.scale, self.measure, self.cap)
 
     def drift_vs_anchor(self) -> float:
         return self.shift(self.fast.median(), self.anchor_median)

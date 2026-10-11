@@ -66,7 +66,8 @@ def resolve_config(cfg: dict[str, Any]) -> dict[str, Any]:
     return resolved
 
 
-def calibrate_budgets(days: dict[int, list[list[float]]], factor: float) -> tuple[float, float]:
+def calibrate_budgets(days: dict[int, list[list[float]]], factor: float, measure: str = "sum",
+                      cap: float = 3.0) -> tuple[float, float]:
     """Drift budgets from benign data only (D42): `factor` x the largest day-to-day median shift
     (daily) and x the largest shift of any benign day from the first day (total), in the drift
     budget's units (sum over features of |median shift| / bootstrap IQR). Needs >= 2 days."""
@@ -78,7 +79,9 @@ def calibrate_budgets(days: dict[int, list[list[float]]], factor: float) -> tupl
     mats = {k: np.asarray(days[k], dtype=float) for k in keys}
     scale = robust_scale(np.vstack([mats[k] for k in keys[:-1]]))
     med = {k: np.median(m, axis=0) for k, m in mats.items()}
-    shift = lambda a, b: float(np.sum(np.abs(med[a] - med[b]) / scale))  # noqa: E731
+    from rad.continual.drift_budget import drift_measure
+
+    shift = lambda a, b: drift_measure(med[a], med[b], scale, measure, cap)  # noqa: E731
     daily = max(shift(a, b) for a, b in zip(keys, keys[1:]))
     total = max(shift(k, keys[0]) for k in keys[1:])
     return factor * daily, factor * max(total, daily)
@@ -144,7 +147,9 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
                                                                 float(cfg["calibration"]["admit_quantile"]))
                     thresholds = {"tau_admit": tau_admit, "tau_alert": tau_alert}
                     if budget_factor is not None:
-                        b_daily, b_total = calibrate_budgets(benign_days, float(budget_factor))
+                        b_daily, b_total = calibrate_budgets(benign_days, float(budget_factor),
+                                                             pcfg.budget.get("measure", "sum"),
+                                                             float(pcfg.budget.get("cap", 3.0)))
                         pcfg.budget = {**pcfg.budget, "b_daily": b_daily, "b_total": b_total}
                         thresholds.update({"b_daily": b_daily, "b_total": b_total})
                     log.info("Calibrated on %d validation windows: tau_admit=%.4f tau_alert=%.4f",

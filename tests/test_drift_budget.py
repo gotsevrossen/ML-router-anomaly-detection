@@ -164,3 +164,12 @@ def test_quarantine_blocks_commits_the_budget_refuses():
     blocked_t = [t for t, d in q.outcome.items() if d == BLOCKED]
     i = int(blocked_t[0] / W)
     assert not profile.has_ip(f"10.0.{i // 250}.{i % 250}")  # blocked windows never reach the cache
+
+
+
+def test_capped_mean_measure_is_not_dominated_by_a_near_constant_feature():
+    from rad.continual.drift_budget import drift_measure
+    scale = np.array([1.0, 1.0, 1e-6])
+    m, ref = np.array([0.5, 0.5, 1.0]), np.zeros(3)
+    assert drift_measure(m, ref, scale) > 1e5  # the sum explodes on the degenerate feature
+    assert drift_measure(m, ref, scale, "capped_mean", 3.0) == pytest.approx((0.5 + 0.5 + 3.0) / 3)
