@@ -100,11 +100,12 @@ class KitNETDetector:
 def kitsune_window_scores(records: Iterable[PacketRecord], windows: Sequence[tuple[int, int]],
                           n_bootstrap_windows: int, *, max_autoencoder_size: int = 10,
                           fm_frac: float = 0.1) -> np.ndarray:
-    """Per-window Kitsune score: max packet score among the window's records.
+    """Per-window raw Kitsune score: max KitNET RMSE among the window's records (not squashed).
 
     `windows` are (first_pkt_index, last_pkt_index) pairs in order (-1, -1 for an
     empty window). Packets of the first `n_bootstrap_windows` windows train
-    KitNET (frozen afterwards, as Kitsune does); those windows score 0.
+    KitNET (frozen afterwards, as Kitsune does); those windows score 0. Callers apply
+    `squash_array`; max and squash are both monotone, so squash(max) == max(squash).
     """
     netStat, _ = _import_kitsune()
     stats = netStat.netStat(np.nan, _HOST_LIMIT, _HOST_LIMIT)
@@ -132,5 +133,5 @@ def kitsune_window_scores(records: Iterable[PacketRecord], windows: Sequence[tup
             det.bootstrap(pending_bootstrap)
             pending_bootstrap.clear()
         i = bounds[pos][0]
-        scores[i] = max(scores[i], det.score_one(vec))
+        scores[i] = max(scores[i], det.model.execute(vec))
     return scores

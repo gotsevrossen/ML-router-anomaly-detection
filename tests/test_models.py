@@ -7,7 +7,7 @@ import pytest
 
 from rad.features.packet_schema import ARP_REQUEST, PacketRecord
 from rad.models import build_detector
-from rad.models.base import FixedMinMaxScaler, score_many, squash
+from rad.models.base import FixedMinMaxScaler, score_many, squash, squash_array
 from rad.models.kitsune_wrapper import kitsune_packet_fields, kitsune_window_scores
 from rad.models.mad import MADDetector
 
@@ -120,6 +120,12 @@ def test_squash_is_monotone_and_bounded():
     assert squash(-3) == 0
 
 
+def test_squash_keeps_huge_scores_apart():
+    """Regression for D15: r / (1 + r) rounded every r > ~1e16 to exactly 1.0, creating ties."""
+    s = squash_array(np.array([1e16, 1e20, 1e100, 1e300]))
+    assert (np.diff(s) > 0).all() and (s < 1).all()
+
+
 def _rec(i: int, ts: float, **kw) -> PacketRecord:
     base = dict(pkt_index=i, ts=ts, cap_len=60, ip_len=46, src_mac="02:00:00:00:00:01", dst_mac="02:00:00:00:00:fe",
                 ip_version=4, src_ip="192.168.1.50", dst_ip="8.8.8.8", ip_proto=6, src_port=40000, dst_port=443,
@@ -146,4 +152,4 @@ def test_kitsune_window_scores_align_to_windows():
     scores = kitsune_window_scores(records, spans, n_bootstrap_windows=4, max_autoencoder_size=5)
     assert len(scores) == 11
     assert (scores[:4] == 0).all() and scores[5] == 0  # bootstrap windows and the empty window
-    assert (scores[[4, 6, 7, 8, 9, 10]] > 0).all() and (scores <= 1).all()
+    assert (scores[[4, 6, 7, 8, 9, 10]] > 0).all()  # raw RMSE maxima; callers squash

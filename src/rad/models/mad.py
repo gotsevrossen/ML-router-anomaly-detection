@@ -11,7 +11,7 @@ from typing import Sequence
 
 import numpy as np
 
-from rad.models.base import squash
+from rad.models.base import squash_array
 
 MAD_TO_SIGMA = 1.4826  # MAD of a normal distribution * 1.4826 = sigma
 MEANAD_TO_SIGMA = 1.2533  # mean absolute deviation of a normal * 1.2533 = sigma
@@ -60,7 +60,7 @@ class MADDetector:
         if self._median is None:
             self._refresh()
         z = (np.abs(np.vstack([self._vec(x) for x in xs]) - self._median) / self._scale).max(axis=1)
-        return z / (1.0 + z)  # squash, vectorised
+        return squash_array(z)
 
     def score_one(self, x: dict[str, float]) -> float:
         return float(self.score_many([x])[0])

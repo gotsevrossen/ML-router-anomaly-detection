@@ -60,6 +60,7 @@ def resolve_config(cfg: dict[str, Any]) -> dict[str, Any]:
 def parse_capture(cfg: dict[str, Any]) -> dict[str, Any]:
     """Stream one capture through the device filter into parquet. Returns the meta dict."""
     cfg = resolve_config(cfg)
+    run = run_metadata()  # at start: the code that produced the output
     out_dir = Path(cfg["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{cfg['device_name']}.parquet"
@@ -95,7 +96,7 @@ def parse_capture(cfg: dict[str, Any]) -> dict[str, Any]:
 
     meta = {
         "config": cfg,
-        "run": run_metadata(),
+        "run": run,
         "output": str(out_path),
         "rows_kept": rows,
         "first_ts": first_ts,

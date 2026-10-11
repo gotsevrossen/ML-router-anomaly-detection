@@ -37,13 +37,21 @@ def score_many(det: Detector, xs: Sequence[dict[str, float]]) -> np.ndarray:
     return np.array([det.score_one(x) for x in xs], dtype=float)
 
 
-def squash(r: float) -> float:
-    """Map an unbounded non-negative score to [0, 1) monotonically: r / (1 + r).
+def squash_array(r: np.ndarray) -> np.ndarray:
+    """Map unbounded non-negative scores to [0, 1) monotonically: L / (1 + L) with L = log(1 + r).
 
     Rank-based metrics are unchanged; it only gives every detector the same range.
+    The log keeps float64 resolution even for astronomically large raw scores
+    (e.g. a robust z over a near-constant feature), where r / (1 + r) would round
+    to exactly 1.0 and create ties (D15).
     """
-    r = max(0.0, float(r))
-    return r / (1.0 + r)
+    lg = np.log1p(np.maximum(np.asarray(r, dtype=float), 0.0))
+    return lg / (1.0 + lg)
+
+
+def squash(r: float) -> float:
+    """Scalar version of `squash_array`."""
+    return float(squash_array(np.array([r]))[0])
 
 
 class FixedMinMaxScaler:

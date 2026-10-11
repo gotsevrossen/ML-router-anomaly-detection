@@ -66,19 +66,23 @@ Run things with `uv run ...`, or activate the venv first (`.venv\Scripts\activat
 ## 3. Usage (what works today)
 
 ```bash
-uv run pytest                                                     # 64 tests
+uv run pytest                                                     # 105 tests
 uv run python -m rad.features.parse --list-devices data/raw/<capture>   # which MACs, how much traffic
 uv run python -m rad.features.parse --config configs/parse_kitsune_mirai.yaml
 uv run python -m rad.features.extract --config configs/features_kitsune_mirai.yaml   # Phase 1b
+uv run python -m rad.eval.baseline --config configs/baseline_kitsune_mirai.yaml      # Phase 1c baseline table
+uv run python -m rad.eval.nbaiot --config configs/nbaiot_danmini_doorbell.yaml       # N-BaIoT secondary benchmark
 ```
 
 Output: `data/interim/<device>.parquet` holds one row per packet of the target device, in capture order. Columns are documented in [packet_schema.py](src/rad/features/packet_schema.py). Next to it, `<device>.meta.json` records the config, git commit, package versions, and counters for every skipped frame. Data download steps are in [data/README.md](data/README.md).
 
 Phase 1b output: `data/processed/<name>.parquet` holds one row per 30 s window. The first five columns are window bookkeeping (`window_start`, `window_end`, `n_records`, `first_pkt_index`, `last_pkt_index`; the pkt indices are only for joining labels at evaluation time). The 31 features follow in `FEATURE_NAMES` order. A `meta.json` next to it records the config, git commit, and extractor and profile-cache counters.
 
+Phase 1c output: `results/<experiment>/` holds `summary_baseline.csv`/`.md` (the table, committed to git), `scores.csv` (every window's score per detector, split and label), `scores.png` (one panel per detector), the resolved `config.yaml` and `meta.json` (git commit, counts). Kitsune scores are cached in `cache/`, because Kitsune-py takes over an hour on the Mirai capture (D16).
+
 Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mirai capture takes about a minute.
 
-## 4. Code map (Phase 1a–1b)
+## 4. Code map (Phase 1a–1c)
 
 | File | What it does |
 |---|---|
@@ -89,6 +93,9 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | [src/rad/features/window_features.py](src/rad/features/window_features.py) | **The feature contract.** `FEATURE_NAMES` (31 features in a fixed order, each defined in the module docstring) and the streaming `WindowFeatureExtractor`, which emits one vector each time a window closes. `CommitPolicy` decides which windows update the profile cache until Phase 2 replaces it. |
 | [src/rad/features/profile_cache.py](src/rad/features/profile_cache.py) | Bounded profile cache (seen IPs, ports, domains, service-port counts) behind the "new …" features. It changes only through `commit()`, the hook for the Phase 2 quarantine. |
 | [src/rad/features/extract.py](src/rad/features/extract.py) | CLI: per-device packet parquet → window feature parquet + meta.json. |
+| [src/rad/models/](src/rad/models/) | The five detectors behind one interface (`base.Detector`: `bootstrap`, `score_one`, `learn_one`): `hst.py` (river Half-Space Trees, bootstrap-frozen scaling with headroom, D14), `iforest.py` (sliding-window retrain), `autoencoder.py` (d→8→d), `mad.py` (max robust z), `kitsune_wrapper.py` (vendored Kitsune fed our packets, max score per window, D16). |
+| [src/rad/eval/](src/rad/eval/) | `metrics.py` (TPR at fixed FPR, partial AUC, validation-set thresholds, false alarms/day, time to detect; never accuracy), `labels.py` (per-window ground truth, evaluation only), `baseline.py` (the one-command baseline table), `nbaiot.py` (N-BaIoT secondary benchmark). |
+| [third_party/kitsune_py/](third_party/kitsune_py/) | Kitsune-py, vendored unmodified (MIT); see `VENDORED.md`. |
 | [src/rad/utils/](src/rad/utils/) | YAML config load/save, logging setup, seeding, run metadata (git hash, versions). |
 | [tests/](tests/) | Synthetic captures built in-test with known answers, including a check that past rows never depend on future frames. |
 | [docs/decisions.md](docs/decisions.md) | Design decisions that affect results or the C port. |
@@ -133,9 +140,14 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | 9 | Per-packet table from IP packets (feature table lists IP-level features only) | Ethernet/IPv4 ARP frames are also kept, with a new `arp_op` column | Mirai's LAN scanning is mostly ARP; dropping it hid most of the infection in the Kitsune Mirai capture (D8). |
 | 10 | ~25 features, "out/in byte ratio" | 31 features: the CLAUDE.md table plus `arp_req_out` and `n_arp_targets` (D8); the ratio is `out_byte_frac` in [0, 1] | ARP carries the LAN scanning. A bounded ratio suits HST and fixed-point C (D12). |
 | 11 | Profile cache obeys quarantine/commit rules | The extractor never writes the cache. A `CommitPolicy` stand-in (bootstrap / always / never) decides until the Phase 2 quarantine replaces it | Keeps Phase 1b free of Phase 2 logic while leaving the exact seam the quarantine needs (D10). |
+| 12 | HST `window_size=250`; min-max scaler fit on bootstrap | `window_size` is a config value (50 for the 2-hour Mirai capture); the bootstrap range maps to [0.25, 0.75] instead of [0, 1] | river's HST scores 0 until its first window fills, and plain clipping made far-out values indistinguishable from the bootstrap maximum (D13, D14). |
+| 13 | Shallow autoencoder 25→8→25 | d→8→d, with d = the number of selected features (28 on Mirai, 115 on N-BaIoT), trained on the bootstrap set and then by replay | The feature count grew to 31 (deviation 10) and some experiments exclude features. |
+| 14 | Kitsune on raw packets | Kitsune is fed only the target device's packets (parsed by us, mapped to its inputs exactly as its own parser does) | Single-device scope; avoids scapy/tshark (D16). |
+| 15 | Phase 1 done on an N-BaIoT device | Primary table on the Kitsune Mirai device; N-BaIoT (Danmini doorbell) is a per-row secondary benchmark on its own 115 features | N-BaIoT has no pcaps or timestamps (deviation 4, D17). |
 
 ---
 
 ## 7. Next steps
 
-- **Phase 1c:** the five detectors behind a common `Detector` interface, plus a one-command baseline table (TPR@FPR=1e-3, partial AUC, false alarms per day).
+- **Data:** the Mirai capture has only ~75 min of benign traffic, too little for reliable false-alarm rates or for the day-scale drift budget. The own testbed (2–4 weeks) is the main fix; a longer public capture would help in the meantime.
+- **Phase 2:** quarantine buffer, anchor model + drift budget, and drift-vs-attack disambiguation as wrappers around any `Detector`, replacing `CommitPolicy` for both the model and the profile cache.

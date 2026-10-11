@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from rad.models.base import FixedMinMaxScaler, squash
+from rad.models.base import FixedMinMaxScaler, squash_array
 
 
 class AutoencoderDetector:
@@ -57,7 +57,7 @@ class AutoencoderDetector:
         v = torch.as_tensor(self.scaler.matrix_scaled(xs), dtype=torch.float32)
         with torch.no_grad():
             mse = ((self.net(v) - v) ** 2).mean(dim=1).numpy()
-        return mse / (1.0 + mse)  # squash, vectorised
+        return squash_array(mse)
 
     def score_one(self, x: dict[str, float]) -> float:
         return float(self.score_many([x])[0])

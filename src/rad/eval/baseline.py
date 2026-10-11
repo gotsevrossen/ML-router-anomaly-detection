@@ -32,7 +32,7 @@ from rad.eval import metrics as M
 from rad.eval.labels import load_frame_labels, window_attack_fraction
 from rad.features.extract import read_records
 from rad.models import build_detector
-from rad.models.base import score_many
+from rad.models.base import score_many, squash_array
 from rad.models.kitsune_wrapper import kitsune_window_scores
 from rad.utils.config import load_config, save_resolved_config
 from rad.utils.log import setup_logging
@@ -102,18 +102,18 @@ def run_kitsune(cfg: dict[str, Any], windows: pd.DataFrame, params: dict, cache_
     n_boot = int(cfg["split"]["bootstrap_windows"])
     st = Path(cfg["packets"]).stat()
     key_src = json.dumps([str(Path(cfg["packets"]).resolve()), st.st_size, st.st_mtime_ns, spans, n_boot,
-                          sorted(params.items()), "kitsune-py@7c8ea51"])
+                          sorted(params.items()), "kitsune-py@7c8ea51", "raw-max-rmse"])
     cache = cache_dir / f"kitsune_{hashlib.sha1(key_src.encode()).hexdigest()[:16]}.npy"
     if cache.exists():
         log.info("Kitsune: using cached scores %s", cache)
-        return np.load(cache), {"fit_s": float("nan"), "score_ms_per_window": float("nan")}
+        return squash_array(np.load(cache)), {"fit_s": float("nan"), "score_ms_per_window": float("nan")}
     t0 = time.perf_counter()
     scores = kitsune_window_scores(read_records(cfg["packets"], 65_536), spans, n_boot, **params)
     elapsed = time.perf_counter() - t0
     cache_dir.mkdir(parents=True, exist_ok=True)
-    np.save(cache, scores)
+    np.save(cache, scores)  # raw max RMSE per window, independent of the score squash
     # Kitsune trains and scores per packet, so report total time per window (no separate fit time).
-    return scores, {"fit_s": float("nan"), "score_ms_per_window": 1000 * elapsed / len(spans)}
+    return squash_array(scores), {"fit_s": float("nan"), "score_ms_per_window": 1000 * elapsed / len(spans)}
 
 
 def evaluate(scores: np.ndarray, y: np.ndarray, split: np.ndarray, starts: np.ndarray, window_s: float,
@@ -191,6 +191,7 @@ def _markdown_table(df: pd.DataFrame) -> str:
 
 def run_baseline(cfg: dict[str, Any]) -> dict[str, Any]:
     cfg = resolve_config(cfg)
+    run = run_metadata()  # at start: the commit that produced the results, not edits made during the run
     set_seed(int(cfg["seed"]))
     out = Path(cfg["out_dir"]) / cfg["experiment"]
     out.mkdir(parents=True, exist_ok=True)
@@ -248,7 +249,7 @@ def run_baseline(cfg: dict[str, Any]) -> dict[str, Any]:
     score_df.to_csv(out / "scores.csv", index=False)
     plot_scores(out / "scores.png", minutes, all_scores, taus, y, split, cfg["experiment"])
     save_resolved_config(cfg, out / "config.yaml")
-    meta = {"run": run_metadata(), "counts": counts, "features": features, "window_s": window_s,
+    meta = {"run": run, "counts": counts, "features": features, "window_s": window_s,
             "features_meta_run": feat_meta.get("run")}
     with open(out / "meta.json", "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=2)

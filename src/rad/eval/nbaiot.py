@@ -73,7 +73,7 @@ def load_device(device_dir: Path, attack_rows_per_file: int, rng: np.random.Gene
     benign = pd.read_csv(device_dir / "benign_traffic.csv")
     attacks = []
     for csv in sorted(device_dir.glob("*_attacks/*.csv")):
-        df = sample_rows(csv, attack_rows_per_file, rng)
+        df = sample_rows(csv, attack_rows_per_file, rng).copy()  # copy consolidates the frame before adding a column
         df["attack"] = f"{csv.parent.name.removesuffix('_attacks')}/{csv.stem}"
         attacks.append(df)
     if not attacks:
@@ -86,6 +86,7 @@ def load_device(device_dir: Path, attack_rows_per_file: int, rng: np.random.Gene
 
 def run_nbaiot(cfg: dict[str, Any]) -> dict[str, Any]:
     cfg = resolve_config(cfg)
+    run = run_metadata()  # at start, see baseline.py
     rng = set_seed(int(cfg["seed"]))
     out = Path(cfg["out_dir"]) / cfg["experiment"]
     out.mkdir(parents=True, exist_ok=True)
@@ -138,7 +139,7 @@ def run_nbaiot(cfg: dict[str, Any]) -> dict[str, Any]:
         fh.write(_markdown_table(per_attack_df.reset_index()) + "\n")
     save_resolved_config(cfg, out / "config.yaml")
     with open(out / "meta.json", "w", encoding="utf-8") as fh:
-        json.dump({"run": run_metadata(), "counts": counts}, fh, indent=2)
+        json.dump({"run": run, "counts": counts}, fh, indent=2)
     log.info("N-BaIoT table -> %s\n%s\n%s", out / "summary_nbaiot.md", table.to_string(index=False),
              per_attack_df.to_string())
     return {"table": table, "per_attack": per_attack_df, "counts": counts, "out": str(out)}

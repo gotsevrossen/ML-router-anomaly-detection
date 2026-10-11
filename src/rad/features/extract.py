@@ -107,6 +107,7 @@ def _rows_to_table(results: list[WindowResult]) -> pa.Table:
 def extract_windows(cfg: dict[str, Any]) -> dict[str, Any]:
     """Stream one device's packet table into window features. Returns the meta dict."""
     cfg = resolve_config(cfg)
+    run = run_metadata()  # at start: the code that produced the output
     pcfg = cfg["profile"]
     out_dir = Path(cfg["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -145,7 +146,7 @@ def extract_windows(cfg: dict[str, Any]) -> dict[str, Any]:
 
     meta = {
         "config": cfg,
-        "run": run_metadata(),
+        "run": run,
         "output": str(out_path),
         "n_windows": n_windows,
         "first_window_start": first_start,
