@@ -99,3 +99,10 @@ This keeps the single-device scope (CLAUDE.md §2). Kitsune normally watches a w
 - *Aggregation.* `z_vol` is the maximum |z| (a volume drop can be benign too, e.g. a camera switched off). `z_div` is the maximum upward z (less diversity is not attack-like).
 - *Tie-breaks.* An alert with `z_div > tau_div` is an attack, otherwise an alert where volume dominates is benign drift. An alert that neither rule explains is called `suspected_attack`: the fail-safe is to never label an unexplained alert benign.
 - *Top features* rank all features by |z| against the same profile, so explanations and states use the same reference.
+
+**D21. Pipeline and output record** ([pipeline/stream.py](../src/rad/pipeline/stream.py), [pipeline/run.py](../src/rad/pipeline/run.py)).
+- *The stream has three phases.* Bootstrap windows are committed to the profile cache and bootstrap the detector(s). Validation windows are scored by the bootstrapped detector and never learned; they set `tau_alert` (target alarms/day) and `tau_admit` (a validation-score quantile, default 0.9). Live windows run the update rule.
+- *Under `full`, gating uses max(fast, anchor)*, and `divergence` marks windows the frozen anchor flags but the fast model does not. That is the signature of a fast model that has been taught the attack.
+- *Smoothing and threat.* `alert` is k-of-n smoothed (default 2 of 3) over raw window alerts. `threat_score = persistence × magnitude`: the share of the last n windows at or above `tau_alert`, times `(score − tau_admit) / (1 − tau_admit)` clipped to [0, 1]. Gating itself uses the raw per-window alert (D18).
+- *`update_decision` is the decision when the window arrives* (quarantined or rejected; committed under `naive`; rejected under `frozen`, where nothing is learned). The final outcome (committed, purged or blocked) is known only later and is kept in the quarantine log and the run summary.
+- *Known rough edge.* A feature whose bootstrap IQR is tiny (e.g. `conn_dur_mean` on the Mirai device) gets z-scores in the thousands. That is correct by the definition but makes `top_features` noisy. Revisit in Phase 3, for example with a scale floor tuned on benign data.
