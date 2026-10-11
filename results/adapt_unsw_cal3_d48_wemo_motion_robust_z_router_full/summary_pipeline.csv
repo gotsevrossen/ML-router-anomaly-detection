@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+adapt_unsw_cal3_d48_wemo_motion_robust_z_router_full,full,robust_z,6957,0.5013222540865276,0.5971212660774429,0.264302220756955,0.264302220756955,299,304,0,0,6658,73,226,1085,1067,3017,1788

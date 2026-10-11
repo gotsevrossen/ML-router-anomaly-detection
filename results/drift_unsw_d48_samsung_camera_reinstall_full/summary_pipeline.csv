@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,final_committed,final_rejected,final_purged,final_quarantined
+drift_unsw_d48_samsung_camera_reinstall_full,full,robust_z,20160,0.4978902304835114,0.5809484112989495,0.5543242161638141,0.8747345923046524,3,5,0,0,20157,3,15239,2382,50,2489

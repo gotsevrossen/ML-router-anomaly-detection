@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,final_rejected
+drift_unsw_d49_samsung_camera_usage_frozen,frozen,robust_z,20160,0.4978902304835114,0.5809484112989494,0.5543242161638141,0.8747345923046524,8,28,0,0,20152,8,20160
