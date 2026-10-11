@@ -163,6 +163,11 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
                         from rad.models.base import score_many
                         boot_max = float(np.max(score_many(fast, boot_rows)))
                         tau_alert = max(tau_alert, float(np.nextafter(boot_max, np.inf)))
+                    if cfg["calibration"].get("strict"):
+                        # D48: alert only strictly above the threshold, so a window tying with the most extreme
+                        # validation window (e.g. RobustZ's in-range ceiling, z = 3 on the top features) never
+                        # alarms; anything beyond the learned range still does.
+                        tau_alert = float(np.nextafter(tau_alert, np.inf))
                     thresholds = {"tau_admit": tau_admit, "tau_alert": tau_alert}
                     if budget_factor is not None:
                         b_daily, b_total = calibrate_budgets(benign_days, float(budget_factor),
