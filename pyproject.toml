@@ -19,7 +19,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 # Installed in Phase 1c (detectors + baselines).
-models = ["river>=0.21", "scikit-learn>=1.4", "torch>=2.2", "matplotlib>=3.8"]
+models = ["river>=0.21", "scikit-learn>=1.4", "torch>=2.2", "matplotlib>=3.8", "cython>=3"]  # cython: vendored Kitsune netStat imports pyximport
+
+[tool.uv]
+# The repo lives in OneDrive, which refuses uv's default hardlinks (os error 396).
+link-mode = "copy"
 
 [tool.setuptools.packages.find]
 where = ["src"]

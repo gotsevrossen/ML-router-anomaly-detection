@@ -21,7 +21,12 @@ Raw data never goes in git. Everything under `raw/`, `interim/` and `processed/`
 - UCI ML Repository: https://archive.ics.uci.edu/dataset/442/detection+of+iot+botnet+attacks+n+baiot (also on Kaggle).
 - **Confirmed CSV-only (2026-10-10):** the public release ships *pre-extracted CSV features* (115 Kitsune-style features per device), **not raw pcaps**.
   - Those features don't match the 25 window features we compute on the router, so N-BaIoT is a secondary benchmark only (loader planned for Phase 1c).
-  - Layout: `raw/detection+of+iot+botnet+attacks+n+baiot/<Device>/benign_traffic.csv`, plus `gafgyt_attacks.rar` and `mirai_attacks.rar`. Extract the `.rar` files with 7-Zip before use.
+  - Layout: `<Device>/benign_traffic.csv`, plus `gafgyt_attacks.rar` and `mirai_attacks.rar`. Windows 11's built-in `tar` extracts RAR, so 7-Zip is not needed:
+    ```bash
+    for r in */*.rar; do mkdir -p "${r%.rar}" && tar -xf "$r" -C "${r%.rar}"; done
+    ```
+    Each archive becomes a folder of per-attack CSVs (gafgyt: combo, junk, scan, tcp, udp; mirai: ack, scan, syn, udp, udpplain), about 9.1 GB in all.
+  - **On this laptop** the extracted copy lives outside the repo in `Desktop/AI reserch data/detection+of+iot+botnet+attacks+n+baiot/` (extracted 2026-10-10). The copy in `data/raw/` still holds only the `.rar` files.
   - Ennio_Doorbell and Samsung_SNH_1011_N_Webcam have no Mirai capture. That is how the dataset was published; nothing is missing.
 
 ## 3. Own testbed (later)

@@ -53,11 +53,15 @@ The project uses [uv](https://docs.astral.sh/uv/) and a Python 3.12 virtual envi
 ```bash
 uv python install 3.12
 uv venv --python 3.12
-uv pip install -e ".[dev]"          # Phase 1a deps + pytest
-# later (Phase 1c): uv pip install -e ".[dev,models]"   # river, scikit-learn, torch, matplotlib
+uv pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU-only torch (~200 MB)
+uv pip install -e ".[dev,models]"   # + river, scikit-learn, matplotlib, cython
 ```
 
 Run things with `uv run ...`, or activate the venv first (`.venv\Scripts\activate` on Windows).
+
+**OneDrive caveat.** The repo sits in a OneDrive folder, and OneDrive interferes with `.venv`: it refuses hardlinks (fixed by `link-mode = "copy"` in `pyproject.toml`) and sometimes locks files during reinstalls ("Access is denied" on `rad-0.1.0.dist-info`). If that happens, delete that folder and re-run `uv pip install -e ".[dev,models]"`. `uv run --no-sync ...` skips the automatic reinstall that `uv run` does after `pyproject.toml` changes. Moving the project out of OneDrive avoids the problem entirely.
+
+**Kitsune baseline.** Kitsune-py is vendored unmodified under [third_party/kitsune_py/](third_party/kitsune_py/) (MIT, pinned commit in `VENDORED.md`). It needs `cython`, which is in the `models` extra.
 
 ## 3. Usage (what works today)
 
@@ -110,6 +114,7 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 13. Added ARP decoding to the parser (D8): the infected device's scanning was ~96% ARP and was being discarded. New `arp_op` column appended to the packet schema; tests added.
 14. **Phase 1b.** Built the streaming 30 s window extractor with 31 features (`window_features.py`), the bounded profile cache (`profile_cache.py`) and the `extract` CLI. Decisions are recorded as D9–D12. Added 24 tests, including one that checks windows before *k* stay identical whatever traffic follows.
 15. Ran Phase 1b on the Kitsune Mirai device: 239 windows, none saturated, profile bootstrapped on the first 60 windows (30 min). Median per window, benign → attack: ARP requests 2 → 6,404, distinct ARP targets 2 → 240, failed-TCP index 6 → 168, connection attempts 6 → 94, top-3-port share 1.0 → 0.13. External destination IPs stay at 3, because this Mirai instance scans the LAN, not the internet.
+16. **Phase 1c setup.** Installed the `models` extra (river 0.26.1, scikit-learn 1.9.1, torch 2.14.1+cpu, matplotlib 3.11.2, cython 3.3.0). Vendored Kitsune-py at commit `7c8ea51` into `third_party/kitsune_py/`; a smoke test confirmed netStat (100 features per packet) and KitNET run. The 2018 code uses `np.Inf`, which NumPy 2 removed, so the wrapper will restore that alias before import rather than edit vendored code. Extracted the 16 N-BaIoT attack `.rar` archives with Windows' built-in `tar`.
 
 ---
 
