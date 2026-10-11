@@ -133,6 +133,19 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 20. Ran the full pipeline (HST, full rule, compressed 10 min quarantine) on the Kitsune Mirai device: all ~88 attack windows alert as `suspected_attack` and none is committed, with explanations such as "ARP requests +5,149 IQRs". 13 benign windows were committed, and 29 were purged when the attack's alert tainted the quarantine. Summary: `results/pipeline_kitsune_mirai_hst_full/summary_pipeline.md`.
 21. Mirai baseline table complete (commit `f773176`; Kitsune scores from the eed5359 run, converted exactly to the raw cache format). Test set: 44 benign and 90 attack windows. Attacks caught at the validation threshold: autoencoder 100%, Isolation Forest 100%, HST 98.9%, MAD 98.9%, Kitsune 54.4%. Every detector raised exactly one false alarm, on the same benign window at 68.5 min, where several features sit at their bootstrap maxima together. With 22 minutes of benign test data that is 65 alarms/day, which is meaningless statistically. Table: `results/baseline_kitsune_mirai/summary_baseline.md`.
 22. Why Isolation Forest and MAD fail on N-BaIoT but not on Mirai (diagnosed on the data). *Isolation Forest:* every attack row lies outside the training range in at least one feature, and 80% lie more than 10 ranges beyond it. Yet the attack scores (median 0.689, max 0.790) all stay below the highest benign validation score (0.833). sklearn splits between each node's training min and max, so a point far beyond the range lands in the same leaf as the most extreme benign point: the same blind spot D14 fixed for HST. *MAD:* 22 of the 115 features have a near-zero scale (< 1e-6) in the training data, e.g. `HH_L1_pcc`. Their tiny benign fluctuations give robust z-scores around 1e36 (benign median), larger than the attacks' (median 6.7e11), so the maximum over features is taken over by noise. On Mirai's 28 window features neither problem appears, and the attacks move features by thousands of IQRs.
+23. **Branch `fix/iforest-mad-extrapolation`, 2026-10-10/11.** Model fixes and new detectors, all developed on Danmini and Mirai and checked on held-out devices:
+    - Extended IF with headroom (D22) and the MAD tail floor (D23);
+    - slog and projection preprocessing (D24), min-p fusion (D25), C-layout model sizes (D26);
+    - RobustZ (D27), tie-safe thresholds (D28);
+    - ECOD-tail with a router sketch (D39).
+24. Robustness checks: 3 seeds (spread ≤ 0.38 points); the artefact check of the Gafgyt flood signal (real spoofed sources, but fragile); the independent Kitsune suite (D29).
+25. New data: UNSW IoT traces. June (5 devices, D30), October (5 unseen devices, D36) and a temporal hold-out (D38), about 38 GB in `AI reserch data/unsw-iot-sosr2019`. Fixes found on it: capture gaps, annotation commas, truncated pcapng, buffer sizes (D35).
+26. Features 31 → 39: inbound senders and ports (D31), ARP spoofing (D34), service and LAN-peer novelty (D37). Resolution floor (D32).
+27. One-command regression suite over every dataset (`rad.eval.regress`, D33), per-attack metric, and persistence / dual-channel alarms (D40). Best configuration: `configs/regress_i8.yaml`.
+28. Update rules on real days (`rad.eval.adapt`, D41–D44): naive learns every attack window (detection 84% → 31%); gated and full commit none. Budget estimator bug fixed; capped-mean measure; monotone scales.
+29. Boiling-frog injector and RQ3 runner (`rad.attacks.boiling_frog`, `rad.eval.poison`, D45).
+
+Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F33).
 
 ---
 
@@ -158,6 +171,12 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | 16 | Update decisions: committed / quarantined / rejected / purged | Adds a fifth outcome, `blocked` (due and clean, but refused by the drift budget) | RQ3 needs to count what the budget stopped, separately from what an alert purged (D19). |
 | 17 | 24 h quarantine delay, daily budgets | The Mirai pipeline demo uses a 10 min delay and placeholder budgets | The capture lasts ~2 h; with a 24 h delay nothing would ever commit. Defaults stay 24 h / per day (D21). |
 | 18 | Phase 2 done when the pipeline runs end-to-end on N-BaIoT | Runs end-to-end on the Kitsune Mirai pcap | N-BaIoT has no packets, so the profile cache and window features cannot be computed from it (deviation 15). |
+| 19 | MAD = max over features of \|x − median\| / (1.4826·MAD) | Kept as the baseline. The portfolio adds MAD+tail floor+slog (D23/D24), RobustZ (D27) and ECOD-tail (D39). | The literal formula fails on near-constant features (F3). Simple robust statistics still win (F9). |
+| 20 | Thresholds: k-th highest validation score | Tie-safe cut (D28) | Ties at the cut alerted together and broke the false-positive budget. |
+| 21 | ~25 features | 39 (D31, D34, D37 appended) | Spoofed floods, ARP spoofing and LAN attacks were invisible to destination-only features. |
+| 22 | Drift = Σ_j \|Δmedian_j\| / IQR_j | Option: mean_j min(\|Δmedian_j\| / IQR_j, 3) (D43); budgets calibrated on benign days (D42) | The sum is dominated by near-constant features (budgets 0.03–475 across devices). |
+| 23 | Quarantine: commit only if no alert during the stay | Also a k-purge variant (D41) | With ~1 false alarm/day and a 24 h delay, the strict rule commits almost nothing (F30). |
+| 24 | Primary model HST | HST kept, but RobustZ is the most stable model (F15, F27) | HST is weak on N-BaIoT and UNSW. Decision for the paper pending. |
 
 ---
 
