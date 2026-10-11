@@ -50,8 +50,15 @@ SECONDS_PER_DAY = 86_400
 
 def load_intervals(path: str | Path) -> pd.DataFrame:
     """Annotation file -> DataFrame(start, end, attack) in Unix seconds, sorted by start."""
-    df = pd.read_csv(path, header=None, names=["start", "end", "flows", "attack"])
-    return df[["start", "end", "attack"]].sort_values("start").reset_index(drop=True)
+    # start,end,<impacted flows>,attack -- the flows field itself sometimes contains a comma
+    # (three PingOfDeath lines of the TP-Link plug), so the attack is the *last* field.
+    rows = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        f = line.strip().split(",")
+        if len(f) >= 4:
+            rows.append((float(f[0]), float(f[1]), f[-1].strip()))
+    df = pd.DataFrame(rows, columns=["start", "end", "attack"])
+    return df.sort_values("start").reset_index(drop=True)
 
 
 def attack_family(label: str) -> str:
