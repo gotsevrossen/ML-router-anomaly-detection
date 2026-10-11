@@ -11,7 +11,7 @@
 | b_daily | 0.08411 |
 | b_total | 0.1043 |
 | alerts | 0 |
-| raw_alerts | 12 |
+| raw_alerts | 2 |
 | drift_notices | 0 |
 | divergence | 0 |
 | state_normal | 20159 |

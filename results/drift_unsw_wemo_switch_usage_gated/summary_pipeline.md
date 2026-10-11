@@ -11,11 +11,11 @@
 | b_daily | 0.08411 |
 | b_total | 0.1043 |
 | alerts | 0 |
-| raw_alerts | 12 |
+| raw_alerts | 2 |
 | drift_notices | 0 |
 | divergence | 0 |
 | state_normal | 20159 |
-| final_committed | 14418 |
-| final_rejected | 3173 |
-| final_purged | 120 |
-| final_quarantined | 2448 |
+| final_committed | 15324 |
+| final_rejected | 2295 |
+| final_purged | 20 |
+| final_quarantined | 2520 |

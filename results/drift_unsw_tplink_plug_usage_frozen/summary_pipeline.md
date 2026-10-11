@@ -10,11 +10,9 @@
 | tau_alert | 0.5809 |
 | b_daily | 0.01622 |
 | b_total | 0.02428 |
-| alerts | 249 |
-| raw_alerts | 442 |
+| alerts | 0 |
+| raw_alerts | 113 |
 | drift_notices | 0 |
 | divergence | 0 |
-| state_normal | 19911 |
-| state_suspected_attack | 200 |
-| state_suspected_benign_drift | 49 |
+| state_normal | 20160 |
 | final_rejected | 20160 |
