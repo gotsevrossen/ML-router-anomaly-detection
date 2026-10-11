@@ -2,7 +2,7 @@
 
 Undergraduate research project (Purdue, advisor: Prof. Esmaeili). The authoritative build spec is [CLAUDE.md](CLAUDE.md). This README explains the model in plain terms, says how to run what exists so far, and **logs every implementation step and every deviation from the plan**.
 
-**Status:** Phase 1a (pcap parsing) and Phase 1b (30 s window features) are done. Phase 1c (detectors + baseline table) is next.
+**Status:** Phase 1 (parsing, window features, five detectors, baseline tables) and Phase 2 (quarantine, drift budget + anchor, disambiguation, streaming pipeline) are implemented and tested. Phase 3 (attack/drift simulation and ablations) is next.
 
 ---
 
@@ -66,12 +66,13 @@ Run things with `uv run ...`, or activate the venv first (`.venv\Scripts\activat
 ## 3. Usage (what works today)
 
 ```bash
-uv run pytest                                                     # 105 tests
+uv run pytest                                                     # 151 tests
 uv run python -m rad.features.parse --list-devices data/raw/<capture>   # which MACs, how much traffic
 uv run python -m rad.features.parse --config configs/parse_kitsune_mirai.yaml
 uv run python -m rad.features.extract --config configs/features_kitsune_mirai.yaml   # Phase 1b
 uv run python -m rad.eval.baseline --config configs/baseline_kitsune_mirai.yaml      # Phase 1c baseline table
 uv run python -m rad.eval.nbaiot --config configs/nbaiot_danmini_doorbell.yaml       # N-BaIoT secondary benchmark
+uv run python -m rad.pipeline.run --config configs/pipeline_kitsune_mirai.yaml       # Phase 2 streaming pipeline
 ```
 
 Output: `data/interim/<device>.parquet` holds one row per packet of the target device, in capture order. Columns are documented in [packet_schema.py](src/rad/features/packet_schema.py). Next to it, `<device>.meta.json` records the config, git commit, package versions, and counters for every skipped frame. Data download steps are in [data/README.md](data/README.md).
@@ -80,9 +81,11 @@ Phase 1b output: `data/processed/<name>.parquet` holds one row per 30 s window. 
 
 Phase 1c output: `results/<experiment>/` holds `summary_baseline.csv`/`.md` (the table, committed to git), `scores.csv` (every window's score per detector, split and label), `scores.png` (one panel per detector), the resolved `config.yaml` and `meta.json` (git commit, counts). Kitsune scores are cached in `cache/`, because Kitsune-py takes over an hour on the Mirai capture (D16).
 
+Phase 2 output: `results/<experiment>/windows.jsonl` has one record per live window, in the CLAUDE.md §5 2d format (`score`, `state`, `alert`, `threat_score`, `top_features`, `update_decision`, `drift_notice`, plus `fast_score`, `anchor_score`, `divergence`, `released`). `summary_pipeline.md` counts alerts, states and final update outcomes.
+
 Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mirai capture takes about a minute.
 
-## 4. Code map (Phase 1a–1c)
+## 4. Code map (Phases 1–2)
 
 | File | What it does |
 |---|---|
@@ -95,6 +98,8 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | [src/rad/features/extract.py](src/rad/features/extract.py) | CLI: per-device packet parquet → window feature parquet + meta.json. |
 | [src/rad/models/](src/rad/models/) | The five detectors behind one interface (`base.Detector`: `bootstrap`, `score_one`, `learn_one`): `hst.py` (river Half-Space Trees, bootstrap-frozen scaling with headroom, D14), `iforest.py` (sliding-window retrain), `autoencoder.py` (d→8→d), `mad.py` (max robust z), `kitsune_wrapper.py` (vendored Kitsune fed our packets, max score per window, D16). |
 | [src/rad/eval/](src/rad/eval/) | `metrics.py` (TPR at fixed FPR, partial AUC, validation-set thresholds, false alarms/day, time to detect; never accuracy), `labels.py` (per-window ground truth, evaluation only), `baseline.py` (the one-command baseline table), `nbaiot.py` (N-BaIoT secondary benchmark). |
+| [src/rad/continual/](src/rad/continual/) | **The novelty.** `quarantine.py` (gated, delayed-commit updates; D18), `drift_budget.py` (daily and cumulative shift budgets, notices; D19), `anchor.py` (frozen or slow, gated anchor model), `profile_stats.py` + `sketch.py` (committed-profile medians in fixed-bin histograms, bootstrap-fixed scales), `disambiguation.py` (volume vs diversity → three states; D20). |
+| [src/rad/pipeline/](src/rad/pipeline/) | `stream.py`: `DevicePipeline`, which runs one device under a frozen, naive, gated or full update rule and emits the output record. `run.py`: the packets → extractor → pipeline CLI, with the profile cache committed only by the update rule (D21). |
 | [third_party/kitsune_py/](third_party/kitsune_py/) | Kitsune-py, vendored unmodified (MIT); see `VENDORED.md`. |
 | [src/rad/utils/](src/rad/utils/) | YAML config load/save, logging setup, seeding, run metadata (git hash, versions). |
 | [tests/](tests/) | Synthetic captures built in-test with known answers, including a check that past rows never depend on future frames. |
@@ -122,6 +127,10 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 14. **Phase 1b.** Built the streaming 30 s window extractor with 31 features (`window_features.py`), the bounded profile cache (`profile_cache.py`) and the `extract` CLI. Decisions are recorded as D9–D12. Added 24 tests, including one that checks windows before *k* stay identical whatever traffic follows.
 15. Ran Phase 1b on the Kitsune Mirai device: 239 windows, none saturated, profile bootstrapped on the first 60 windows (30 min). Median per window, benign → attack: ARP requests 2 → 6,404, distinct ARP targets 2 → 240, failed-TCP index 6 → 168, connection attempts 6 → 94, top-3-port share 1.0 → 0.13. External destination IPs stay at 3, because this Mirai instance scans the LAN, not the internet.
 16. **Phase 1c setup.** Installed the `models` extra (river 0.26.1, scikit-learn 1.9.1, torch 2.14.1+cpu, matplotlib 3.11.2, cython 3.3.0). Vendored Kitsune-py at commit `7c8ea51` into `third_party/kitsune_py/`; a smoke test confirmed netStat (100 features per packet) and KitNET run. The 2018 code uses `np.Inf`, which NumPy 2 removed, so the wrapper will restore that alias before import rather than edit vendored code. Extracted the 16 N-BaIoT attack `.rar` archives with Windows' built-in `tar`.
+17. **Phase 1c.** Five detectors behind one interface, low-FPR metrics, and two one-command runners (`rad.eval.baseline`, `rad.eval.nbaiot`). Tests exposed two real flaws, both fixed with regression tests: min-max clipping made far-out values indistinguishable from the bootstrap maximum for HST (D14), and `r/(1+r)` rounded huge MAD scores to exactly 1.0, creating ties (D15). Run metadata is now captured when a run starts, so edits during a run cannot mark it dirty.
+18. N-BaIoT Danmini doorbell (secondary benchmark, 115 features, commit `dad15d7`): TPR at FPR 1e-3 is KitNET 0.80, autoencoder 0.58, HST 0.34, Isolation Forest 0.00 and MAD 0.00. pAUC@0.01 is 0.92, 0.96, 0.91, 0.68 and 0.50. MAD's max-over-115-features is dominated by near-constant features that also fluctuate in benign traffic. No detector catches the Gafgyt `tcp`/`udp` floods on these features. Full table: `results/nbaiot_danmini_doorbell/summary_nbaiot.md`.
+19. **Phase 2.** Quarantine buffer (D18), drift budget + anchor model + histogram sketches (D19), disambiguation on a shared committed-profile `RobustProfile` (D20), and the streaming pipeline with the output record (D21). The required checks are tests: an obviously anomalous window is never committed, the windows before an alert are purged, and the drift budget halts commits once exceeded (including a boiling-frog ramp that only the cumulative budget catches). End-to-end tests show that under `gated` and `full` a scan never reaches the detector or the profile cache, while `naive` learns it.
+20. Ran the full pipeline (HST, full rule, compressed 10 min quarantine) on the Kitsune Mirai device: all ~88 attack windows alert as `suspected_attack` and none is committed, with explanations such as "ARP requests +5,149 IQRs". 13 benign windows were committed, and 29 were purged when the attack's alert tainted the quarantine. Summary: `results/pipeline_kitsune_mirai_hst_full/summary_pipeline.md`.
 
 ---
 
@@ -144,10 +153,13 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 | 13 | Shallow autoencoder 25→8→25 | d→8→d, with d = the number of selected features (28 on Mirai, 115 on N-BaIoT), trained on the bootstrap set and then by replay | The feature count grew to 31 (deviation 10) and some experiments exclude features. |
 | 14 | Kitsune on raw packets | Kitsune is fed only the target device's packets (parsed by us, mapped to its inputs exactly as its own parser does) | Single-device scope; avoids scapy/tshark (D16). |
 | 15 | Phase 1 done on an N-BaIoT device | Primary table on the Kitsune Mirai device; N-BaIoT (Danmini doorbell) is a per-row secondary benchmark on its own 115 features | N-BaIoT has no pcaps or timestamps (deviation 4, D17). |
+| 16 | Update decisions: committed / quarantined / rejected / purged | Adds a fifth outcome, `blocked` (due and clean, but refused by the drift budget) | RQ3 needs to count what the budget stopped, separately from what an alert purged (D19). |
+| 17 | 24 h quarantine delay, daily budgets | The Mirai pipeline demo uses a 10 min delay and placeholder budgets | The capture lasts ~2 h; with a 24 h delay nothing would ever commit. Defaults stay 24 h / per day (D21). |
+| 18 | Phase 2 done when the pipeline runs end-to-end on N-BaIoT | Runs end-to-end on the Kitsune Mirai pcap | N-BaIoT has no packets, so the profile cache and window features cannot be computed from it (deviation 15). |
 
 ---
 
 ## 7. Next steps
 
 - **Data:** the Mirai capture has only ~75 min of benign traffic, too little for reliable false-alarm rates or for the day-scale drift budget. The own testbed (2–4 weeks) is the main fix; a longer public capture would help in the meantime.
-- **Phase 2:** quarantine buffer, anchor model + drift budget, and drift-vs-attack disambiguation as wrappers around any `Detector`, replacing `CommitPolicy` for both the model and the profile cache.
+- **Phase 3:** the boiling-frog injector (volumetric and behavioral, geometric growth), the benign-drift simulator (firmware update, app reinstall, schedule shift), and the one-command ablation matrix over update rules × detectors × feature sets. Also: tune `b_daily`/`b_total`, `tau_div` and a z-scale floor on benign data only (D19–D21).
