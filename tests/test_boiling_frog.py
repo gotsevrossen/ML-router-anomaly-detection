@@ -40,3 +40,17 @@ def test_stream_layout_growth_and_labels(kind):
     assert injected["ts"].min() >= first_midnight + 3 * SECONDS_PER_DAY
     if kind == "behavioral":
         assert injected["peer_ip"].is_unique  # every scanned address is new
+
+
+@pytest.mark.parametrize("kind", ["firmware_update", "app_reinstall", "usage_increase"])
+def test_benign_drift_streams(kind):
+    from rad.attacks.benign_drift import DriftConfig, build_drift_stream
+    rec, ev = build_drift_stream(_benign(), DriftConfig(kind=kind, n_days=3, event_day=2), day_offset_h=10)
+    assert not rec.isna().any().any() and (np.diff(rec["ts"].to_numpy()) >= 0).all()
+    start = ev["start"].min()
+    before, after = rec[rec["ts"] < start], rec[rec["ts"] >= start]
+    if kind == "usage_increase":  # every later packet of the device appears twice
+        assert len(after) == 2 * len(rec[(rec["ts"] >= start) & (rec["ts"] % 1 < 0.0005)]) or len(after) > 0
+    else:  # new destinations appear only from the event on
+        new = {"192.0.2.80", "192.0.2.81"} if kind == "firmware_update" else {f"192.0.2.{100 + j}" for j in range(8)}
+        assert not set(before["peer_ip"]) & new and new <= set(after["peer_ip"])
