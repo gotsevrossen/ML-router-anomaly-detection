@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+drift_unsw_d47_samsung_camera_usage_gated,gated,robust_z,20160,0.4978902304835114,0.5809484112989494,0.5543242161638141,0.8747345923046524,39,57,0,0,20121,38,1,15559,1484,570,2547

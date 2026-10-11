@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed
+drift_unsw_d47_tplink_plug_reinstall_naive,naive,robust_z,20160,0.5598028518341717,0.5809454597456116,0.016223613609695858,0.02428316602135891,8,34,0,0,20152,5,3,20160

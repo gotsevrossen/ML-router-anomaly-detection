@@ -1,0 +1,13 @@
+device,event,rule,fa_before,fa_event_day,fa_after_last3,drift_share,committed_after,drift_notices
+samsung_camera,reinstall,frozen,0.0,0,0.0,,0,0
+samsung_camera,reinstall,naive,8.0,0,4.666666666666667,0.972972972972973,16920,0
+samsung_camera,reinstall,gated,0.0,0,0.0,,12403,0
+samsung_camera,reinstall,full,0.0,0,0.0,1.0,12359,0
+tplink_plug,reinstall,frozen,0.0,9,0.0,0.1111111111111111,0,0
+tplink_plug,reinstall,naive,0.0,8,0.0,0.375,16920,0
+tplink_plug,reinstall,gated,0.0,12,9.0,0.1702127659574468,11973,0
+tplink_plug,reinstall,full,0.0,12,23.0,0.17796610169491525,1340,2
+wemo_switch,reinstall,frozen,0.0,0,0.0,,0,0
+wemo_switch,reinstall,naive,0.0,0,0.0,,16919,0
+wemo_switch,reinstall,gated,0.0,0,0.0,,12489,0
+wemo_switch,reinstall,full,0.0,0,0.0,,12299,0
