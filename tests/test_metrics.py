@@ -69,3 +69,12 @@ def test_event_detection_counts_an_attack_once_if_any_window_alerts():
     assert n == 3 and rate == pytest.approx(2 / 3)
     # A time gap (dropped windows) splits an episode even when the attack windows are adjacent in the array.
     assert len(M.attack_events(np.array([0, 30, 300, 330.0]), np.ones(4), 30.0)) == 2
+
+
+def test_persistence_min_cuts_isolated_spikes_and_keeps_sustained_ones():
+    starts = np.array([0, 30, 60, 90, 120, 150, 300, 330.0])  # gap before 300
+    s = np.array([0.1, 0.9, 0.1, 0.8, 0.8, 0.8, 0.9, 0.1])
+    out = M.persist_min(s, starts, 30.0, 3)
+    assert out[1] == 0.1  # isolated spike removed
+    assert out[5] == 0.8  # third window of a sustained run keeps its level
+    assert out[6] == 0.9  # after a gap the run restarts, so nothing earlier is mixed in

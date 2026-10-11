@@ -73,6 +73,24 @@ def detection_rate(attack_scores: np.ndarray, tau: float) -> float:
     return float((s >= tau).mean()) if len(s) else float("nan")
 
 
+def persist_min(scores: np.ndarray, starts: np.ndarray, window_s: float, k: int) -> np.ndarray:
+    """Causal k-window persistence (D40): each window's score becomes the minimum over itself and the
+    previous k - 1 windows, if they follow it without a time gap (fewer after a gap or at the start).
+
+    An isolated benign spike is cut to its neighbours' level; an attack that lasts k windows or more keeps
+    its level from its k-th window on. On a router it is a ring buffer of k - 1 scores per device.
+    """
+    s = np.asarray(scores, dtype=float)
+    starts = np.asarray(starts, dtype=float)
+    out = s.copy()
+    run = 1  # length of the contiguous run ending at i
+    for i in range(1, len(s)):
+        run = run + 1 if starts[i] - starts[i - 1] <= window_s * 1.5 else 1
+        m = min(run, k)
+        out[i] = s[i - m + 1: i + 1].min()
+    return out
+
+
 def attack_events(starts: np.ndarray, y: np.ndarray, window_s: float) -> list[np.ndarray]:
     """Index arrays of attack episodes: runs of attack windows that follow each other in time."""
     starts, y = np.asarray(starts, dtype=float), np.asarray(y)

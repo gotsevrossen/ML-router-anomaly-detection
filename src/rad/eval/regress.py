@@ -49,7 +49,10 @@ def _tagged(cfg: dict[str, Any], tag: str) -> dict[str, Any]:
 
 
 def _exclude(cfg: dict[str, Any], rc: dict[str, Any]) -> None:
-    """Add the suite's `exclude_features` (e.g. to reproduce an older feature set) to a window config."""
+    """Add the suite's `exclude_features` (e.g. to reproduce an older feature set) to a window config,
+    and its window-level `persistence` setting (D40)."""
+    if rc.get("persistence"):
+        cfg["persistence"] = rc["persistence"]
     extra = list(rc.get("exclude_features") or [])
     if extra:
         feats = cfg.setdefault("features", {})
@@ -159,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     save_resolved_config(cfg, out / "config.yaml")
     frames = []
     for ds, rc in cfg["datasets"].items():
-        rc = {**rc, "exclude_features": cfg.get("exclude_features") or []}
+        rc = {**rc, "exclude_features": cfg.get("exclude_features") or [], "persistence": cfg.get("persistence")}
         if args.only and ds not in args.only:
             continue
         log.info("=== %s", ds)

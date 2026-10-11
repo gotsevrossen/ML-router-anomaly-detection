@@ -185,6 +185,7 @@ def run_device(dev: str, mac: str, cfg: dict[str, Any], gaps: set[float] | None 
         "window_labels": {"attack_frac": frac.tolist(), "exclude": (guard & (frac == 0)).tolist()},
         "features": cfg.get("features", {}), "split": {"bootstrap_windows": n_boot_w, "validation_windows": n_val_w},
         "threshold": cfg.get("threshold", {}), "metrics": cfg.get("metrics", {}), "detectors": cfg["detectors"],
+        "persistence": cfg.get("persistence"),
     })
     # Per-attack detection at each detector's validation threshold.
     out = Path(res["out"])

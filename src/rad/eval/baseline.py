@@ -243,6 +243,10 @@ def run_baseline(cfg: dict[str, Any]) -> dict[str, Any]:
         else:
             all_scores[name], timing[name] = run_window_detector(name, params or {}, features, rows, split)
 
+    persist = cfg.get("persistence")  # D40: causal k-window minimum, applied to every detector alike
+    if persist:
+        k = int(persist["k"])
+        all_scores = {n: M.persist_min(s, starts, window_s, k) for n, s in all_scores.items()}
     table_rows = []
     taus: dict[str, float] = {}
     for name, scores in all_scores.items():

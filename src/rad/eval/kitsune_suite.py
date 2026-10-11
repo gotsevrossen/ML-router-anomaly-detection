@@ -116,6 +116,7 @@ def run_capture(name: str, cap: dict[str, Any], cfg: dict[str, Any]) -> dict[str
         "windows": str(win_boot), "packets": str(packets), "labels": cap["labels"],
         "features": cfg.get("features", {}), "split": {"bootstrap_windows": n_boot, "validation_windows": n_val},
         "threshold": cfg.get("threshold", {}), "metrics": cfg.get("metrics", {}), "detectors": cfg["detectors"],
+        "persistence": cfg.get("persistence"),
     })
     return {"capture": name, "device": choice["mac"], "pre_attack_windows": n_benign_pre, **res["counts"],
             "table": res["table"]}
