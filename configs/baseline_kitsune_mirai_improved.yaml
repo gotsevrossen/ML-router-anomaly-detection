@@ -1,0 +1,41 @@
+# Router-friendly detector improvements (D24-D26) on the Kitsune Mirai device (28 window features).
+# Run:  python -m rad.eval.baseline --config configs/baseline_kitsune_mirai_improved.yaml
+# Same split, seeds and threshold rule as configs/baseline_kitsune_mirai.yaml. Values fixed before any run.
+# Fusion members train on 48 of the 60 bootstrap windows (12 calibrate), so their HST window is 40.
+
+experiment: baseline_kitsune_mirai_improved
+seed: 0
+out_dir: results
+windows: data/processed/kitsune_mirai_device_w30.parquet
+packets: data/interim/kitsune_mirai_device.parquet
+labels: data/raw/kitsune+network+attack+dataset/mirai/Mirai_labels.csv.gz   # evaluation only
+
+features:
+  exclude: [tod_sin, tod_cos, is_weekend]   # D13
+
+split:
+  bootstrap_windows: 60
+  validation_windows: 45
+
+threshold:
+  alarms_per_day: 1
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  hst_slog: {type: hst, n_trees: 25, height: 10, window_size: 50, seed: 0, preprocess: {steps: [slog]}}
+  hst_proj: {type: hst, n_trees: 25, height: 10, window_size: 50, seed: 0, preprocess: {steps: [slog, project], n_projections: 32, seed: 0}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 1200, batch_size: 32, seed: 0, preprocess: {steps: [slog]}}
+  iforest_ext_slog: {type: iforest, n_estimators: 100, max_samples: 256, margin: 0.25, extra_depth: 4, hyperplane: true, seed: 0, preprocess: {steps: [slog]}}
+  iforest_ext_sparse_slog: {type: iforest, n_estimators: 100, max_samples: 256, margin: 0.25, extra_depth: 4, hyperplane: true, hyperplane_features: sqrt, seed: 0, preprocess: {steps: [slog]}}
+  mad_tail_slog: {type: mad, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+  kitnet_windows: {type: kitnet, max_autoencoder_size: 10, fm_frac: 0.1}
+  fusion:
+    members:
+      mad_tail_slog: {type: mad, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+      hst_proj: {type: hst, n_trees: 25, height: 10, window_size: 40, seed: 0, preprocess: {steps: [slog, project], n_projections: 32, seed: 0}}
+      autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 1200, batch_size: 32, seed: 0, preprocess: {steps: [slog]}}
+    calib_frac: 0.2
+    tail_quantile: 0.9

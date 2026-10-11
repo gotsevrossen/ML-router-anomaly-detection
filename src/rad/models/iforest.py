@@ -46,10 +46,11 @@ class _HeadroomForest:
     """
 
     def __init__(self, n_estimators: int, max_samples: int, margin: float, extra_depth: int, seed: int,
-                 hyperplane: bool = False) -> None:
+                 hyperplane: bool = False, hyperplane_features: int | None = None) -> None:
         self.n_estimators, self.max_samples = n_estimators, max_samples
         self.margin, self.extra_depth = margin, extra_depth
         self.hyperplane = hyperplane
+        self.hyperplane_features = hyperplane_features  # None = all features (fully extended)
         self.rng = np.random.default_rng(seed)
         self.trees: list[tuple[np.ndarray, ...]] = []
         self.psi = 0
@@ -75,7 +76,10 @@ class _HeadroomForest:
             if depth >= depth_limit or len(idx) <= 1:
                 return me
             if self.hyperplane:
-                w = self.rng.normal(size=n_feat)
+                w = np.zeros(n_feat)
+                k = n_feat if self.hyperplane_features is None else min(self.hyperplane_features, n_feat)
+                on = self.rng.choice(n_feat, size=k, replace=False) if k < n_feat else np.arange(n_feat)
+                w[on] = self.rng.normal(size=k)
                 w /= np.linalg.norm(w)
                 v = X[idx] @ w
                 fallback = float(np.abs(w) @ global_span)
@@ -132,8 +136,8 @@ class IForestDetector:
 
     def __init__(self, features: Sequence[str], n_estimators: int = 100, max_samples: int = 256,
                  window: int = 2880, retrain_every: int = 120, margin: float = 0.0, extra_depth: int = 4,
-                 hyperplane: bool = False, tail_quantile: float = 0.999, tail_z: float = 3.0,
-                 seed: int = 0) -> None:
+                 hyperplane: bool = False, hyperplane_features: int | str | None = None,
+                 tail_quantile: float = 0.999, tail_z: float = 3.0, seed: int = 0) -> None:
         self.features = tuple(features)
         self.n_estimators = n_estimators
         self.max_samples = max_samples
@@ -141,6 +145,9 @@ class IForestDetector:
         self.margin = margin
         self.extra_depth = extra_depth
         self.hyperplane = hyperplane
+        if hyperplane_features == "sqrt":
+            hyperplane_features = math.ceil(math.sqrt(len(self.features)))  # sparse EIF (D26)
+        self.hyperplane_features = hyperplane_features
         self.tail_quantile, self.tail_z = tail_quantile, tail_z
         self._center: np.ndarray | None = None
         self._scale: np.ndarray | None = None
@@ -163,7 +170,8 @@ class IForestDetector:
             data = (data - self._center) / self._scale
         if self.margin > 0 or self.hyperplane:
             self.model = _HeadroomForest(self.n_estimators, self.max_samples, self.margin, self.extra_depth,
-                                         self.seed + self._fits, hyperplane=self.hyperplane).fit(data)
+                                         self.seed + self._fits, hyperplane=self.hyperplane,
+                                         hyperplane_features=self.hyperplane_features).fit(data)
         else:
             self.model = IsolationForest(n_estimators=self.n_estimators,
                                          max_samples=min(self.max_samples, len(data)),
@@ -194,3 +202,20 @@ class IForestDetector:
         self._since_fit += 1
         if self._since_fit >= self.retrain_every:
             self._fit()
+
+    def model_bytes(self) -> int:
+        """C layout (D26): per node float32 cut, two int32 children, int32 leaf size, uint16 feature;
+        hyperplane nodes add (uint16 index + float32 weight) per non-zero weight; plus scaling vectors."""
+        if self.model is None:
+            return 0
+        per_node = 4 + 8 + 4 + 2
+        if isinstance(self.model, IsolationForest):
+            return sum(est.tree_.node_count for est in self.model.estimators_) * per_node
+        total = 0
+        for feat, _thr, _l, _r, _size, normals in self.model.trees:
+            total += len(feat) * per_node
+            if self.hyperplane:
+                total += int((normals != 0).sum()) * 6
+        if self._scale is not None:
+            total += 2 * 4 * len(self.features)
+        return total

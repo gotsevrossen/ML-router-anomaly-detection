@@ -96,6 +96,14 @@ class KitNETDetector:
     def learn_one(self, x) -> None:
         self.model.train(self._vec(x))
 
+    def model_bytes(self) -> int:
+        """float32 weights, biases and normalisation bounds of every autoencoder, plus the feature map (D26)."""
+        if self.model is None or self.model.v is None:
+            return 0
+        aes = list(self.model.ensembleLayer) + [self.model.outputLayer]
+        floats = sum(a.W.size + a.hbias.size + a.vbias.size + a.norm_max.size + a.norm_min.size for a in aes)
+        return 4 * floats + 2 * sum(len(m) for m in self.model.v)
+
 
 def kitsune_window_scores(records: Iterable[PacketRecord], windows: Sequence[tuple[int, int]],
                           n_bootstrap_windows: int, *, max_autoencoder_size: int = 10,

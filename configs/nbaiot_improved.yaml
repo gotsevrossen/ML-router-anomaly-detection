@@ -1,0 +1,38 @@
+# Router-friendly detector improvements (D24-D26) on N-BaIoT, 115 features per row.
+# Development device:   python -m rad.eval.nbaiot --config configs/nbaiot_improved.yaml
+# Held-out devices:     ... --device Ecobee_Thermostat   (etc., all 8 others)
+# Every value below was fixed before any run with it; nothing is tuned on attack data.
+# The original/first-fix variants are in configs/nbaiot_fixes.yaml (same splits, same seeds).
+
+experiment: nbaiot_improved
+seed: 0
+out_dir: results
+device_dir: C:/Users/gotse/OneDrive/Desktop/AI reserch data/detection+of+iot+botnet+attacks+n+baiot/Danmini_Doorbell
+
+split:
+  bootstrap_frac: 0.5
+  validation_frac: 0.2
+attack_rows_per_file: 2000
+
+threshold:
+  target_fpr: 0.001
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  hst_slog: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog]}}
+  hst_proj: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog, project], n_projections: 32, seed: 0}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, buffer: 50000, seed: 0, preprocess: {steps: [slog]}}
+  iforest_ext_slog: {type: iforest, n_estimators: 100, max_samples: 256, window: 50000, margin: 0.25, extra_depth: 4, hyperplane: true, seed: 0, preprocess: {steps: [slog]}}
+  iforest_ext_sparse_slog: {type: iforest, n_estimators: 100, max_samples: 256, window: 50000, margin: 0.25, extra_depth: 4, hyperplane: true, hyperplane_features: sqrt, seed: 0, preprocess: {steps: [slog]}}
+  mad_tail_slog: {type: mad, window: 50000, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+  kitnet: {max_autoencoder_size: 10, fm_frac: 0.1}
+  fusion:
+    members:
+      mad_tail_slog: {type: mad, window: 50000, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+      hst_proj: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog, project], n_projections: 32, seed: 0}}
+      autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, buffer: 50000, seed: 0, preprocess: {steps: [slog]}}
+    calib_frac: 0.2
+    tail_quantile: 0.9

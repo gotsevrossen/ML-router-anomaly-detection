@@ -88,7 +88,9 @@ def run_window_detector(name: str, params: dict, features: list[str], rows: list
     t0 = time.perf_counter()
     scores = score_many(det, rows)
     score_ms = 1000 * (time.perf_counter() - t0) / len(rows)
-    return scores, {"fit_s": fit_s, "score_ms_per_window": score_ms}
+    size = getattr(det, "model_bytes", None)
+    model_kb = size() / 1024 if size is not None else float("nan")
+    return scores, {"fit_s": fit_s, "score_ms_per_window": score_ms, "model_kb": model_kb}
 
 
 def kitsune_cache_path(cfg: dict[str, Any], windows: pd.DataFrame, params: dict, cache_dir: Path) -> Path:
@@ -113,14 +115,16 @@ def run_kitsune(cfg: dict[str, Any], windows: pd.DataFrame, params: dict, cache_
     cache = kitsune_cache_path(cfg, windows, params, cache_dir)
     if cache.exists():
         log.info("Kitsune: using cached scores %s", cache)
-        return squash_array(np.load(cache)), {"fit_s": float("nan"), "score_ms_per_window": float("nan")}
+        return squash_array(np.load(cache)), {"fit_s": float("nan"), "score_ms_per_window": float("nan"),
+                                              "model_kb": float("nan")}
     t0 = time.perf_counter()
     scores = kitsune_window_scores(read_records(cfg["packets"], 65_536), spans, n_boot, **params)
     elapsed = time.perf_counter() - t0
     cache_dir.mkdir(parents=True, exist_ok=True)
     np.save(cache, scores)  # raw max RMSE per window, independent of the score squash
     # Kitsune trains and scores per packet, so report total time per window (no separate fit time).
-    return squash_array(scores), {"fit_s": float("nan"), "score_ms_per_window": 1000 * elapsed / len(spans)}
+    return squash_array(scores), {"fit_s": float("nan"), "score_ms_per_window": 1000 * elapsed / len(spans),
+                                  "model_kb": float("nan")}
 
 
 def evaluate(scores: np.ndarray, y: np.ndarray, split: np.ndarray, starts: np.ndarray, window_s: float,

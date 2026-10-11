@@ -65,3 +65,7 @@ class AutoencoderDetector:
     def learn_one(self, x: dict[str, float]) -> None:
         self.buffer.append(self.scaler.transform_vec(x))
         self._train(np.vstack(self.buffer), self.steps_per_learn)
+
+    def model_bytes(self) -> int:
+        """float32 weights and biases plus the frozen scaler bounds (D26); the replay buffer is not counted."""
+        return 4 * sum(p.numel() for p in self.net.parameters()) + 2 * 4 * len(self.features)

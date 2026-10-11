@@ -37,3 +37,9 @@ class HSTDetector:
 
     def learn_one(self, x: dict[str, float]) -> None:
         self.model.learn_one(self.scaler.transform(x))
+
+    def model_bytes(self) -> int:
+        """C layout (D26): per internal node a uint16 feature + float32 cut; per node two uint32 masses."""
+        nodes = 2 ** (self.model.height + 1) - 1
+        internal = 2 ** self.model.height - 1
+        return self.model.n_trees * (internal * 6 + nodes * 8) + 2 * 4 * len(self.features)

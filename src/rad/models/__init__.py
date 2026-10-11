@@ -11,10 +11,22 @@ def build_detector(name: str, features: Sequence[str], params: dict[str, Any] | 
     """Construct a window-level detector by config name. Imports are lazy so torch loads only if used.
 
     `params` may carry a `type` key, so one config can hold variants of the same detector
-    under different names (e.g. `mad_tail: {type: mad, tail_quantile: 0.999}`).
+    under different names (e.g. `mad_tail: {type: mad, tail_quantile: 0.999}`), and a
+    `preprocess` key ({steps: [slog, project], n_projections, seed}) that wraps any
+    detector in the D24 transforms.
     """
     params = dict(params or {})
     name = params.pop("type", name)
+    pre = params.pop("preprocess", None)
+    if pre:
+        from rad.models.preprocess import PreprocessedDetector
+
+        pre = dict(pre)
+        steps = pre.pop("steps")
+        return PreprocessedDetector(features, lambda feats: build_detector(name, feats, params), steps, **pre)
+    if name == "fusion":
+        from rad.models.fusion import FusionDetector
+        return FusionDetector(features, **params)
     if name == "hst":
         from rad.models.hst import HSTDetector
         return HSTDetector(features, **params)

@@ -88,3 +88,8 @@ class MADDetector:
     def learn_one(self, x: dict[str, float]) -> None:
         self.buffer.append(self._vec(x))
         self._median = None  # recomputed lazily on the next score
+
+    def model_bytes(self) -> int:
+        """Scoring state: one float32 median and scale per feature (D26). Updating would add a
+        streaming quantile sketch (D19 histograms) instead of this Python buffer."""
+        return 2 * 4 * len(self.features)
