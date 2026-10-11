@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,final_committed,final_rejected,final_purged,final_quarantined
+ablation_unsw_wemo_motion_hst_slog_full,full,hst,6957,0.6644725744992672,0.9862523497801662,0.264302220756955,0.264302220756955,0,1,0,0,6957,3356,1144,10,2447

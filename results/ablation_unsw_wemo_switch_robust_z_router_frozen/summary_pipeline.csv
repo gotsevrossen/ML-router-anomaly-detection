@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+ablation_unsw_wemo_switch_robust_z_router_frozen,frozen,robust_z,6955,0.51562287355466,0.5914792944038534,0.08232296211874603,0.10236757072721955,328,327,0,0,6627,296,32,6955

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+ablation_unsw_tplink_plug_ecod_router_gated,gated,ecod,6951,0.5993725714641288,0.6867403373489109,0.01769608905587759,0.025513449531784357,436,446,0,0,6515,84,352,1307,1318,3577,749

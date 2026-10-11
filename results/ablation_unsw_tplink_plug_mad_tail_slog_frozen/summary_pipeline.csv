@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+ablation_unsw_tplink_plug_mad_tail_slog_frozen,frozen,mad,6951,0.5809402158035948,0.8250816207133962,0.01769608905587759,0.025513449531784357,80,80,0,0,6871,77,3,6951

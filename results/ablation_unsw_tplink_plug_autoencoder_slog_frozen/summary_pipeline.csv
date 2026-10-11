@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+ablation_unsw_tplink_plug_autoencoder_slog_frozen,frozen,autoencoder,6951,0.0038919498712641047,0.053892156535033216,0.01769608905587759,0.025513449531784357,318,322,0,0,6633,42,276,6951

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+ablation_unsw_wemo_motion_autoencoder_slog_gated,gated,autoencoder,6957,0.004657774585554629,0.0328435427614446,0.264302220756955,0.264302220756955,71,72,0,0,6886,50,21,2702,1197,720,2338

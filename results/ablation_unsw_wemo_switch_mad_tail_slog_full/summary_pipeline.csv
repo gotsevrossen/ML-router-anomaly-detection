@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed,final_rejected,final_purged,final_quarantined
+ablation_unsw_wemo_switch_mad_tail_slog_full,full,mad,6955,0.5809402158035948,0.7296472435879582,0.08232296211874603,0.10236757072721955,178,179,0,0,6777,174,4,609,3719,1556,1071

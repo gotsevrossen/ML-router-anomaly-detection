@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+ablation_unsw_samsung_camera_mad_tail_slog_frozen,frozen,mad,6957,0.5589253606140518,0.7581203112444953,0.5543174141172962,0.8645165133321273,81,81,0,0,6876,80,1,6957

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+ablation_unsw_tplink_plug_robust_z_router_full,full,robust_z,6951,0.5598013092346921,0.5809445177413085,0.01769608905587759,0.025513449531784357,450,471,0,1,6501,90,360,1244,1247,3797,663

@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+ablation_unsw_wemo_motion_ecod_router_frozen,frozen,ecod,6957,0.613873070108602,0.693488327688893,0.264302220756955,0.264302220756955,289,294,0,0,6668,222,67,6957

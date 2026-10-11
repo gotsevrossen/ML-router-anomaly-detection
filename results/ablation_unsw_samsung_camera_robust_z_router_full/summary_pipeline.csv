@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+ablation_unsw_samsung_camera_robust_z_router_full,full,robust_z,6957,0.4979603868145605,0.5809490078784394,0.5543174141172962,0.8645165133321273,461,462,0,0,6496,16,445,981,1321,4167,488

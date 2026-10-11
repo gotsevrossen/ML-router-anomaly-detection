@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+ablation_unsw_netatmo_camera_ecod_router_frozen,frozen,ecod,6957,0.6253450700064211,0.6867403373489109,0.3366105222412288,0.3366105222412288,310,313,0,0,6647,57,253,6957

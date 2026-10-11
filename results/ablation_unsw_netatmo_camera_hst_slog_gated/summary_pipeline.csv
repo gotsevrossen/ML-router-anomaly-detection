@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,final_committed,final_rejected,final_quarantined
+ablation_unsw_netatmo_camera_hst_slog_gated,gated,hst,6957,0.7439463800683928,0.9970981143136298,0.3366105222412288,0.3366105222412288,0,0,0,0,6957,3553,765,2639

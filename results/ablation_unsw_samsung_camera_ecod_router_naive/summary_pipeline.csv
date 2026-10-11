@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed
+ablation_unsw_samsung_camera_ecod_router_naive,naive,ecod,6957,0.6481811029099612,0.6867403373489109,0.5543174141172962,0.8645165133321273,33,48,0,0,6924,6,27,6957
