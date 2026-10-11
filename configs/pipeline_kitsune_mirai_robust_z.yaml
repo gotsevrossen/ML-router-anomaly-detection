@@ -1,0 +1,39 @@
+# Phase 2d pipeline with the router-ready RobustZ detector (D27): sketch state, int16 parameters, full update rule.
+# Run:  python -m rad.pipeline.run --config configs/pipeline_kitsune_mirai.yaml
+# Needs data/interim/kitsune_mirai_device.parquet (configs/parse_kitsune_mirai.yaml).
+#
+# The capture is ~2 h, so the time constants are compressed: a 24 h quarantine delay
+# would mean nothing ever commits. Budgets are placeholders until Phase 3 tunes
+# them on benign data (D19).
+
+experiment: pipeline_kitsune_mirai_robust_z_full
+seed: 0
+out_dir: results
+device: "3c:33:00:98:ee:fd"
+packets: data/interim/kitsune_mirai_device.parquet
+window_s: 30
+
+features:
+  exclude: [tod_sin, tod_cos, is_weekend]   # D13: 2-hour capture
+
+detector:
+  name: robust_z
+  params: {stats: sketch, precision: int16}
+
+split:
+  bootstrap_windows: 60
+  validation_windows: 45
+
+calibration:
+  alarms_per_day: 1        # tau_alert
+  admit_quantile: 0.9      # tau_admit = 90th percentile of validation scores
+
+pipeline:
+  update_rule: full
+  quarantine: {t_delay_s: 600, purge_k: 10, taint_on_alert: true}   # 10 min instead of 24 h (compressed)
+  budget: {b_daily: 3.0, b_total: 6.0}
+  anchor: {update_every_s: null}   # frozen anchor
+  disambiguation: {tau_div: 3.0}
+  alert_k: 2
+  alert_n: 3
+  top_k: 3

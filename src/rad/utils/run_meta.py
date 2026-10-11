@@ -20,8 +20,10 @@ def git_commit(repo_dir: str | Path | None = None) -> str:
         commit = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=cwd, capture_output=True, text=True, check=True
         ).stdout.strip()
+        # Outputs under results/ and data/ do not change the code that produced a run.
         dirty = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=cwd, capture_output=True, text=True, check=True
+            ["git", "status", "--porcelain", "--", ".", ":(exclude)results", ":(exclude)data"],
+            cwd=cwd, capture_output=True, text=True, check=True,
         ).stdout.strip()
         return f"{commit}-dirty" if dirty else commit
     except (OSError, subprocess.CalledProcessError):

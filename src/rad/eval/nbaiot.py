@@ -105,9 +105,11 @@ def run_nbaiot(cfg: dict[str, Any]) -> dict[str, Any]:
 
     table_rows, per_attack = [], []
     test = split == "test"
+    all_scores: dict[str, np.ndarray] = {}
     for name, params in cfg["detectors"].items():
         log.info("Running %s", name)
         scores, timing = run_window_detector(name, params or {}, features, rows, split)
+        all_scores[name] = scores
         tau = M.threshold_for_fpr(scores[split == "validation"], float(cfg["threshold"]["target_fpr"]))
         y_t, s_t = y[test], scores[test]
         row: dict[str, Any] = {"detector": name}
@@ -131,6 +133,7 @@ def run_nbaiot(cfg: dict[str, Any]) -> dict[str, Any]:
               "test_attack": int(len(attack)), "features": len(features)}
 
     table.to_csv(out / "summary_nbaiot.csv", index=False)
+    pd.DataFrame({"split": split, "label": y, "attack": attack_type, **all_scores}).to_parquet(out / "scores.parquet")
     per_attack_df.to_csv(out / "summary_nbaiot_per_attack.csv")
     with open(out / "summary_nbaiot.md", "w", encoding="utf-8") as fh:
         fh.write(f"# {cfg['experiment']}\n\nRows: {counts}. Per-row metrics on N-BaIoT's 115 pre-extracted "

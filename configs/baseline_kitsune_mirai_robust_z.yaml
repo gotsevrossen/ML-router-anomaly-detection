@@ -1,0 +1,28 @@
+# RobustZ (D27) vs the previous best MAD variant on the Kitsune Mirai device, tie-safe threshold (D28).
+# Run:  python -m rad.eval.baseline --config configs/baseline_kitsune_mirai_robust_z.yaml
+
+experiment: baseline_kitsune_mirai_robust_z
+seed: 0
+out_dir: results
+windows: data/processed/kitsune_mirai_device_w30.parquet
+packets: data/interim/kitsune_mirai_device.parquet
+labels: data/raw/kitsune+network+attack+dataset/mirai/Mirai_labels.csv.gz   # evaluation only
+
+features:
+  exclude: [tod_sin, tod_cos, is_weekend]   # D13
+
+split:
+  bootstrap_windows: 60
+  validation_windows: 45
+
+threshold:
+  alarms_per_day: 1
+
+metrics:
+  fpr: [0.001, 0.0001]
+  pauc_max_fpr: [0.01, 0.1]
+
+detectors:
+  mad_tail_slog: {type: mad, tail_quantile: 0.999, tail_z: 3.0, preprocess: {steps: [slog]}}
+  robust_z: {stats: exact, precision: float32}
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16}

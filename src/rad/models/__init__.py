@@ -39,6 +39,9 @@ def build_detector(name: str, features: Sequence[str], params: dict[str, Any] | 
     if name == "mad":
         from rad.models.mad import MADDetector
         return MADDetector(features, **params)
+    if name == "robust_z":
+        from rad.models.robust_z import RobustZDetector
+        return RobustZDetector(features, **params)
     if name == "kitnet":
         from rad.models.kitsune_wrapper import KitNETDetector
         return KitNETDetector(features, **params)

@@ -34,6 +34,17 @@ def test_threshold_from_short_validation_sits_just_above_its_max():
     assert M.false_alarms_per_day(np.array([0.2, 0.5, 0.3]), tau, 30) == 0.0
 
 
+def test_threshold_respects_the_budget_when_scores_tie():
+    """Regression for D28: 10 tied validation scores at the cut must not all alert."""
+    scores = np.r_[np.linspace(0, 0.5, 990), np.full(10, 0.9)]
+    tau = M.threshold_for_fpr(scores, 0.005)  # budget: 5 alerts out of 1000
+    assert (scores >= tau).sum() <= 5
+    tau2 = M.threshold_for_fpr(np.r_[np.linspace(0, 0.5, 990), np.full(6, 0.9), np.full(4, 0.95)], 0.005)
+    assert tau2 == 0.95  # 10 would alert at 0.9; the next distinct value lets only 4 alert
+    tau3 = M.threshold_for_fpr(np.r_[np.linspace(0, 0.5, 994), np.full(6, 0.95)], 0.005)
+    assert tau3 > 0.95  # 6 tied at the very top: nothing may alert
+
+
 def test_threshold_quantile_when_validation_resolves_the_rate():
     # 2880 windows = 1 day; 2 alarms/day allows exactly the top 2 validation windows to alert.
     scores = np.arange(2880, dtype=float)

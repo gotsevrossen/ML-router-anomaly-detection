@@ -121,3 +121,34 @@ This keeps the single-device scope (CLAUDE.md §2). Kitsune normally watches a w
 - 22 of 115 N-BaIoT features have near-zero MAD, so their tiny benign fluctuations produced robust z around 1e36 and took over the maximum over features.
 - With the floor, a feature's own extreme training deviation maps to about 3 units, so "how unusual" is comparable across features.
 - This changes MAD from CLAUDE.md's literal formula, so the original stays the default and the floor is opt-in.
+
+**Held-out check of D22/D23 (8 never-inspected N-BaIoT devices, one run each).** Mean attacks caught at the validation threshold: Extended IF 74.5% (sklearn IF 6.9%), MAD with tail floor 77.2% (MAD 0.004%). Mean benign test FPR at the threshold: 0.09% and 0.12% (target 0.1%). The fixes generalise; they are not artefacts of the development devices. Many devices top out at about 80% or 60%: that is the two Gafgyt floods (tcp, udp) that no detector catches, out of 10 (or 5) attack files.
+
+## Router-friendly improvements for every detector (D24-D26)
+
+Same rules as D22/D23: every value was fixed in the configs (`nbaiot_improved.yaml`, `baseline_kitsune_mirai_improved.yaml`) before any run, nothing was tuned on attack data, and the evidence is the held-out devices.
+
+**D24. Preprocessing wrappers usable with any detector** ([preprocess.py](../src/rad/models/preprocess.py)), frozen after bootstrap.
+- `slog`: x → sign(x)·log(1 + |x|). Window counts jump 100–1000× under attack, which squashes benign variation into a sliver of a linear range. In C: a lookup table.
+- `project`: robust standardisation (the D23 scale), then 32 seeded random unit directions. Every projected feature mixes all inputs, so HST's single-feature cuts see attack shifts in any feature, for the same reason Extended IF works. In C: one fixed 32×F matrix-vector product per window (3,680 multiply-adds for N-BaIoT's 115 features, 896 for our 28).
+
+**D25. Min-p fusion** ([fusion.py](../src/rad/models/fusion.py)). Members (MAD+tail+slog, HST on projections, AE+slog) train on the first 80% of the bootstrap windows. The last 20%, which they never saw, calibrate each member's score to a benign p-value: empirical below the 90th percentile, an exponential tail above it (peaks-over-threshold, in the style of SPOT, Siffer et al. 2017), so scores beyond the calibration maximum keep their order. The combined score is squash(−log min(1, m·min_i p_i)), computed in log space. It is unsupervised and benign-only. Cost: the members plus a sorted calibration array per member.
+
+**D26. Size and speed are reported for every model.** `model_bytes()` estimates the C-port memory of the *scoring* state.
+- HST: per node two uint32 masses; per internal node a uint16 feature and a float32 cut.
+- Isolation Forest: about 18 bytes per node, plus (uint16 index + float32 weight) per non-zero hyperplane weight.
+- Autoencoder and KitNET: float32 weights and biases.
+- MAD: one median and one scale per feature.
+
+Learning buffers are not counted, because the C port would use the D19 sketches instead. Sparse Extended IF (`hyperplane_features: sqrt`, about √F weights per split) cuts the forest to roughly a third of its dense size.
+
+## RobustZ: the router-ready robust-statistics detector (D27-D28)
+
+**D27. RobustZ** ([robust_z.py](../src/rad/models/robust_z.py)) is MAD+tail floor+slog, rebuilt around three findings on the development sets (Danmini, Mirai).
+- *Two-sided, range-calibrated scales.* N-BaIoT rows from the two Gafgyt floods (tcp, udp) are outside the benign training range in about 5 features each (0.0–0.1% of them lie inside it, against 99.6% of benign test rows). Yet with one symmetric scale per feature their z was only about 5.94, because where the training range ends differs wildly between features: anywhere from z = 0 to z = 2,435. For `MI_dir_L0.01_weight` it is +0.6 above the median and −5.94 below. RobustZ gives each side of each feature its own scale, `s = max(MAD-type scale, extreme training deviation on that side / 3)`, so the training range ends at z ≤ 3 on every side, and a long tail on one side no longer inflates the other side's scale. Dropping the robust floor (so the edge lands at exactly z = 3) was slightly worse on the development sets (Danmini TPR@1e-3 0.80 instead of 1.00; Mirai 2/44 false alarms instead of 1/44), so the floor stays. A test caught the original description ("exactly z = 3") being wrong. Danmini attacks caught at the validation threshold went from 80% to 100%, and pAUC@0.01 from 0.958 to 0.989.
+- *Mean of the 3 largest z instead of the maximum.* An attack pushes several features out of range; a benign outlier usually pushes one. Pre-declared options were max, 2nd-largest and top-3 mean. The declared rule (best development pAUC) would have picked 2nd-largest, but its validation threshold did not transfer (22% test FPR on Danmini), so top-3 mean was chosen instead. This is a documented deviation from the declared rule, made because of the false-positive priority.
+- *Router state.* Scoring needs a median and two reciprocal scales per feature: 3F float32, or 3F int16 mantissas plus 3F int8 exponents (`precision: int16`, 9 bytes per feature, so 252 B for our 28 features). Learning with `stats: sketch` keeps one 64-bin histogram per feature plus running per-side extremes (about 7.7 KB for 28 features) instead of a 2,880-row window (about 315 KB in float32), and refreshes parameters lazily. On the development sets, sketch and int16 parameters were as accurate as exact float32.
+- *Per-window cost:* F × (log lookup, subtract, multiply, compare) plus a partial top-3. About 1–1.6 µs per window for 28 features in vectorised numpy; a C loop should be faster still.
+- *Remaining false positives are drift, not the scores.* 0.37% of Danmini's later benign test rows fall outside the bootstrap range, so any detector frozen after bootstrap that asks "outside the training range?" has that floor. Continual learning through the quarantine (D18) is what addresses it.
+
+**D28. Tie-safe thresholds** (`metrics.threshold_for_fpr`). The old rule cut at the floor(fpr·n)-th highest validation score. When several validation scores tied at that cut, all of them alerted, so the real validation false-positive rate could far exceed the target. Discrete features make ties common: many benign rows sit exactly at a training extreme, so they score exactly z = 3. The cut now moves to the next distinct score whenever ties would break the budget. Every detector benefits. Results produced before this fix overstate false positives wherever ties occurred.

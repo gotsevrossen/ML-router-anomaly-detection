@@ -37,16 +37,23 @@ def partial_auc(y: np.ndarray, s: np.ndarray, max_fpr: float) -> float:
 def threshold_for_fpr(benign_scores: np.ndarray, fpr: float) -> float:
     """Alert threshold set on benign validation scores only (no attack data, CLAUDE.md §8).
 
-    Lets floor(fpr * n) validation samples alert. When the validation set is too
-    small to resolve `fpr`, the threshold sits just above its maximum score.
+    The lowest threshold at which at most floor(fpr * n) validation samples alert
+    (alert = score >= tau). Ties matter (D28): if several validation scores equal
+    the candidate cut, all of them would alert, so the cut moves up to the next
+    distinct score, or just above the maximum.
     """
     s = np.sort(np.asarray(benign_scores, dtype=float))
     if len(s) == 0:
         raise ValueError("need benign validation scores to set a threshold")
-    k = int(np.floor(fpr * len(s)))
+    n = len(s)
+    k = int(np.floor(fpr * n))
     if k == 0:
         return float(np.nextafter(s[-1], np.inf))
-    return float(s[len(s) - k])
+    tau = s[n - k]
+    if n - np.searchsorted(s, tau, side="left") > k:  # ties at the cut would exceed the budget
+        above = s[s > tau]
+        return float(above[0]) if len(above) else float(np.nextafter(s[-1], np.inf))
+    return float(tau)
 
 
 def threshold_for_alarm_rate(benign_scores: np.ndarray, alarms_per_day: float, window_s: float) -> float:
