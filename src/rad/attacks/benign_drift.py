@@ -9,8 +9,8 @@ Scripted benign events injected at the packet level into a device's replayed ben
                    every 60 s (persistent diversity shift + transient volume spike)
   app_reinstall    a 5-minute burst: DNS queries for 8 new domains and short TLS exchanges with
                    8 new servers (transient diversity shift)
-  usage_increase   from the event on, every packet of the device's own traffic appears twice
-                   (persistent volume shift)
+  usage_increase   from the event on, every data packet of the device's traffic appears twice (not SYN,
+                   FIN, RST or DNS) (persistent volume shift)
 
 Returns (records, events) where events lists every injected interval with its kind and whether
 it is the transient part or the persistent tail (labels for evaluation only).
@@ -89,7 +89,10 @@ def build_drift_stream(benign: pd.DataFrame, cfg: DriftConfig, day_offset_h: flo
         shifted = src.assign(ts=src["ts"] + (day_start(2 + k) - src_start))
         parts.append(shifted)
         if cfg.kind == "usage_increase":
-            dup = shifted[shifted["ts"] >= ev_t]
+            # More use = more data packets on existing flows. Connection set-up/tear-down (SYN, FIN, RST)
+            # and DNS are not duplicated, otherwise "failed connections" would double too (first run did).
+            ctl = (shifted["ip_proto"] == 6) & (shifted["tcp_flags"].clip(lower=0) & 0x07).astype(bool)
+            dup = shifted[(shifted["ts"] >= ev_t) & ~ctl & (shifted["dns_is_response"] < 0)]
             if len(dup):
                 parts.append(dup.assign(ts=dup["ts"] + 0.001))  # every packet appears twice
     rows: list[dict] = []

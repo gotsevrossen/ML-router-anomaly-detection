@@ -49,8 +49,10 @@ def test_benign_drift_streams(kind):
     assert not rec.isna().any().any() and (np.diff(rec["ts"].to_numpy()) >= 0).all()
     start = ev["start"].min()
     before, after = rec[rec["ts"] < start], rec[rec["ts"] >= start]
-    if kind == "usage_increase":  # every later packet of the device appears twice
-        assert len(after) == 2 * len(rec[(rec["ts"] >= start) & (rec["ts"] % 1 < 0.0005)]) or len(after) > 0
+    if kind == "usage_increase":  # every later data packet appears twice: the original and a copy 1 ms later
+        off = (after["ts"] - T0) % 1800
+        orig, dup = after[off.abs() < 1e-6], after[(off - 0.001).abs() < 1e-6]
+        assert len(orig) > 0 and len(dup) == len(orig) and len(orig) + len(dup) == len(after)
     else:  # new destinations appear only from the event on
         new = {"192.0.2.80", "192.0.2.81"} if kind == "firmware_update" else {f"192.0.2.{100 + j}" for j in range(8)}
         assert not set(before["peer_ip"]) & new and new <= set(after["peer_ip"])
