@@ -428,6 +428,7 @@ Design decisions are explained in [decisions.md](decisions.md) (D1–D29). The b
 - On window data with persistence it is the best on UNSW and the temporal hold-out.
 - On N-BaIoT: 84.4% caught at 0.23% FPR (above the 0.1% target), pAUC@0.01 95.8.
 - Scoring 0.03 ms per row. Exact-mode state (sorted training values) is too big for a router; a quantile-sketch variant is needed.
+- **Router sketch (i8):** exact distinct-value counts for count features, and 257 quantiles plus 64 exact extremes per side for continuous ones. At most 175 KB (N-BaIoT, 115 features), against 22 MB exact, with the same per-attack detection everywhere: UNSW 95.5%, hold-out 100%, October 93.5%, Mirai and Kitsune 100%. N-BaIoT is even slightly better (86.6% against 84.4%).
 
 ---
 
