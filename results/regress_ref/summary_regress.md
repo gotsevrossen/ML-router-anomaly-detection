@@ -28,3 +28,9 @@
 | unsw | kitnet | 0.7044 | nan | 4.274 | 0.6203 | 0.8425 |
 | unsw | mad_tail_slog | 0.7238 | nan | 7.226 | 0.4825 | 0.8505 |
 | unsw | robust_z_router | 0.6957 | nan | 5.943 | 0.6247 | 0.882 |
+| unsw_oct | autoencoder_slog | 0.7737 | nan | 21.04 | 0.6062 | 0.8151 |
+| unsw_oct | hst_slog | 0.2854 | nan | 9.548 | 0.3003 | 0.6624 |
+| unsw_oct | iforest_ext_sparse_slog | 0.4415 | nan | 55.48 | 0.3063 | 0.7511 |
+| unsw_oct | kitnet | 0.748 | nan | 55.89 | 0.6376 | 0.8471 |
+| unsw_oct | mad_tail_slog | 0.5605 | nan | 496.9 | 0.1002 | 0.7501 |
+| unsw_oct | robust_z_router | 0.8758 | nan | 24.98 | 0.6553 | 0.8454 |
