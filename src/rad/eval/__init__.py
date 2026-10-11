@@ -1,1 +1,1 @@
-"""Placeholder: implemented in a later phase (see CLAUDE.md section 5)."""
+"""Evaluation: metrics, labels, baseline runner (Phase 1c); ablations and plots later."""
