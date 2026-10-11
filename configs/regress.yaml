@@ -3,13 +3,16 @@
 # new windows_tag) and compare against the previous tag; drops in attacks caught or rises in false
 # positives on any dataset are flagged.
 out_dir: results
+# Reference = the pre-D31 feature set: the three inbound features are excluded. regress_i1.yaml drops this
+# line; regress_i2.yaml also adds the D32 resolution floor. All variants share the "_v34" windows.
+exclude_features: [n_in_peers, n_new_in_peers, n_in_ports]
 
 datasets:
   mirai:
     detector_overrides: {hst_slog: {window_size: 50}}   # Mirai bootstrap = 60 windows
     features_config: configs/features_kitsune_mirai.yaml
     baseline_config: configs/baseline_kitsune_mirai_improved.yaml
-    windows_tag: ""
+    windows_tag: "_v34"
   nbaiot:
     config: configs/nbaiot_frontrunners.yaml
     detector_overrides: {}
@@ -19,10 +22,10 @@ datasets:
   kitsune_suite:
     config: configs/kitsune_suite.yaml
     detector_overrides: {hst_slog: {window_size: 20}}   # smallest bootstrap = 20 windows
-    windows_tag: ""
+    windows_tag: "_v34"
   unsw:
     config: configs/unsw.yaml
-    windows_tag: ""
+    windows_tag: "_v34"
 
 detectors:
   robust_z_router: {type: robust_z, stats: sketch, precision: int16}

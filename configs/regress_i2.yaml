@@ -1,0 +1,36 @@
+# Regression suite (python -m rad.eval.regress --config configs/regress.yaml --tag <name> [--ref <tag>]).
+# The model portfolio, run unchanged on every dataset. Change detectors here (or the feature code, with a
+# new windows_tag) and compare against the previous tag; drops in attacks caught or rises in false
+# positives on any dataset are flagged.
+out_dir: results
+# Reference = the pre-D31 feature set: the three inbound features are excluded. regress_i1.yaml drops this
+# line; regress_i2.yaml also adds the D32 resolution floor. All variants share the "_v34" windows.
+exclude_features: []
+
+datasets:
+  mirai:
+    detector_overrides: {hst_slog: {window_size: 50}}   # Mirai bootstrap = 60 windows
+    features_config: configs/features_kitsune_mirai.yaml
+    baseline_config: configs/baseline_kitsune_mirai_improved.yaml
+    windows_tag: "_v34"
+  nbaiot:
+    config: configs/nbaiot_frontrunners.yaml
+    detector_overrides: {}
+    devices: [Danmini_Doorbell, Ecobee_Thermostat, Ennio_Doorbell, Philips_B120N10_Baby_Monitor,
+              Provision_PT_737E_Security_Camera, Provision_PT_838_Security_Camera, Samsung_SNH_1011_N_Webcam,
+              SimpleHome_XCS7_1002_WHT_Security_Camera, SimpleHome_XCS7_1003_WHT_Security_Camera]
+  kitsune_suite:
+    config: configs/kitsune_suite.yaml
+    detector_overrides: {hst_slog: {window_size: 20}}   # smallest bootstrap = 20 windows
+    windows_tag: "_v34"
+  unsw:
+    config: configs/unsw.yaml
+    windows_tag: "_v34"
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05}
+  mad_tail_slog: {type: mad, tail_quantile: 0.999, tail_z: 3.0, min_scale: 0.05, preprocess: {steps: [slog]}}
+  autoencoder_slog: {type: autoencoder, hidden: 8, lr: 0.01, bootstrap_steps: 3000, batch_size: 64, seed: 0, preprocess: {steps: [slog]}}
+  iforest_ext_sparse_slog: {type: iforest, n_estimators: 100, max_samples: 256, margin: 0.25, extra_depth: 4, hyperplane: true, hyperplane_features: sqrt, min_scale: 0.05, seed: 0, preprocess: {steps: [slog]}}
+  hst_slog: {type: hst, n_trees: 25, height: 10, window_size: 250, seed: 0, preprocess: {steps: [slog]}}
+  kitnet: {type: kitnet, max_autoencoder_size: 10, fm_frac: 0.1}
