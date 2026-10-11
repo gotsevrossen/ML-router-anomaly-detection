@@ -52,6 +52,10 @@ ARP spoofing (D34, appended)
   n_arp_conflicts            sender IPs of received ARP packets claimed by a MAC other than the
                              committed profile's binding for that IP, or by 2+ MACs in the window
                              (the gateway's IP suddenly answered by the attacker's MAC)
+Service and LAN-peer novelty (D37, appended; IoT devices serve few local ports and talk to few LAN hosts)
+  n_new_in_ports             local TCP/UDP ports that received traffic and never did in the profile
+  n_lan_peers                distinct LAN peer IPs of IP packets in either direction
+  n_new_lan_peers            of those, how many are not in the committed profile
 
 Distinct counts saturate at `window_set_cap`. Every profile lookup happens when
 the window closes, so a window is always compared with the profile as committed
@@ -101,6 +105,8 @@ FEATURE_NAMES: tuple[str, ...] = (
     "n_in_peers", "n_new_in_peers", "n_in_ports",
     # ARP spoofing (D34)
     "arp_rep_in", "n_arp_conflicts",
+    # service and LAN-peer novelty (D37)
+    "n_new_in_ports", "n_lan_peers", "n_new_lan_peers",
 )
 
 IP_PROTO_TCP, IP_PROTO_UDP, IP_PROTO_ICMP, IP_PROTO_ICMP6 = 6, 17, 1, 58
@@ -164,6 +170,7 @@ class _Window:
         self.in_peers = CappedSet(cap)
         self.in_ports = CappedSet(cap)
         self.arp_rep_in = 0
+        self.lan_peers = CappedSet(cap)
         self.arp_claims: dict[str, set[str]] = {}  # sender IP -> sender MACs of received ARP (<= cap IPs)
 
     def count_service_port(self, port: int) -> None:
@@ -175,7 +182,7 @@ class _Window:
     @property
     def saturated(self) -> bool:
         sets = (self.ext_dst_ips, self.ext_prefixes, self.dst_ports, self.domains, self.arp_targets,
-                self.in_peers, self.in_ports)
+                self.in_peers, self.in_ports, self.lan_peers)
         return self.service_port_overflow > 0 or any(s.overflow for s in sets)
 
 
@@ -306,6 +313,8 @@ class WindowFeatureExtractor:
         elif proto in (IP_PROTO_ICMP, IP_PROTO_ICMP6):
             w.icmp += 1
 
+        if r.peer_is_lan:
+            w.lan_peers.add(r.peer_ip)
         if not out:
             w.in_peers.add(r.peer_ip)
             if proto in (IP_PROTO_TCP, IP_PROTO_UDP) and r.dst_port >= 0:
@@ -400,6 +409,8 @@ class WindowFeatureExtractor:
             w.arp_rep_in,
             sum(1 for ip, macs in w.arp_claims.items()
                 if len(macs) > 1 or (p.arp_binding(ip) is not None and p.arp_binding(ip) not in macs)),
+            sum(1 for port in w.in_ports if not p.has_in_port(port)),
+            len(w.lan_peers), sum(1 for ip in w.lan_peers if not p.has_lan_peer(ip)),
         )
         features = {name: float(v) for name, v in zip(FEATURE_NAMES, values, strict=True)}
         observation = WindowObservation(
@@ -409,6 +420,8 @@ class WindowFeatureExtractor:
             domains=tuple(w.domains),
             service_ports=tuple(w.service_ports.items()),
             in_peers=tuple(w.in_peers),
+            in_ports=tuple(w.in_ports),
+            lan_peers=tuple(w.lan_peers),
             arp_bindings=tuple((ip, min(macs)) for ip, macs in w.arp_claims.items() if len(macs) == 1),
         )
         return WindowResult(w.start, w.end, w.n_records, w.first_pkt_index, w.last_pkt_index,

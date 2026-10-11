@@ -44,7 +44,7 @@ def run(records, profile=None, commit=None, **kwargs):
 
 
 def test_feature_names_are_unique_and_in_result_order():
-    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 36
+    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 39
     (res,), _ = run([rec(T0)])
     assert tuple(res.features) == FEATURE_NAMES
 
@@ -245,3 +245,14 @@ def test_arp_spoofing_conflicts_against_committed_binding():
     assert (f0["arp_rep_in"], f0["n_arp_conflicts"]) == (1, 0)
     assert (f1["arp_rep_in"], f1["n_arp_conflicts"]) == (5, 1)
     assert f2["n_arp_conflicts"] == 1  # two MACs claim the gateway inside one window
+
+
+def test_new_service_ports_and_new_lan_peers():
+    """D37: a port the device never served and a LAN host it never talked to are both new."""
+    learn = [rec(T0 + 1, "in", peer="192.168.1.1", proto=17, lport=53), rec(T0 + 2, "in", peer="8.8.8.8", lport=443)]
+    probe = [rec(T0 + 30, "in", peer="192.168.1.205", proto=17, lport=161), rec(T0 + 31, "in", peer="192.168.1.1", proto=17, lport=53),
+             rec(T0 + 32, "out", peer="192.168.1.77", lport=5000, rport=80)]
+    results, _ = run(learn + probe, commit=CommitPolicy("bootstrap", bootstrap_windows=1))
+    f = results[1].features
+    assert f["n_new_in_ports"] == 1  # 161 is new; 53 was served before
+    assert (f["n_lan_peers"], f["n_new_lan_peers"]) == (3, 2)  # .1 known; .205 and .77 new

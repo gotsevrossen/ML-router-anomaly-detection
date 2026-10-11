@@ -62,6 +62,8 @@ class WindowObservation:
     domains: tuple[str, ...] = ()
     service_ports: tuple[tuple[int, int], ...] = ()  # (service port, packets)
     in_peers: tuple[str, ...] = ()  # senders of received IP packets, LAN or not (D31)
+    in_ports: tuple[int, ...] = ()  # local ports that received TCP/UDP traffic (D37)
+    lan_peers: tuple[str, ...] = ()  # LAN peers in either direction (D37)
     arp_bindings: tuple[tuple[str, str], ...] = ()  # (IP, MAC) claimed by one MAC in received ARP (D34)
 
 
@@ -74,6 +76,8 @@ class ProfileCache:
         self.dst_ports = CappedSet(max_ports)
         self.domains = CappedSet(max_domains)
         self.in_peers = CappedSet(max_ips)
+        self.in_ports = CappedSet(max_ports)
+        self.lan_peers = CappedSet(max_ips)
         self.max_ips = max_ips
         self._arp: dict[str, str] = {}  # IP -> MAC last committed (bounded by max_ips)
         self.arp_overflow = 0
@@ -86,6 +90,12 @@ class ProfileCache:
 
     def has_ip(self, ip: str) -> bool:
         return ip in self.ips
+
+    def has_in_port(self, port: int) -> bool:
+        return port in self.in_ports
+
+    def has_lan_peer(self, ip: str) -> bool:
+        return ip in self.lan_peers
 
     def arp_binding(self, ip: str) -> str | None:
         return self._arp.get(ip)
@@ -109,6 +119,10 @@ class ProfileCache:
             self.ips.add(ip)
         for ip in obs.in_peers:
             self.in_peers.add(ip)
+        for port in obs.in_ports:
+            self.in_ports.add(port)
+        for ip in obs.lan_peers:
+            self.lan_peers.add(ip)
         for ip, mac in obs.arp_bindings:
             if ip in self._arp or len(self._arp) < self.max_ips:
                 self._arp[ip] = mac  # a committed (gated) window may legitimately rebind an IP
@@ -139,6 +153,8 @@ class ProfileCache:
             "domains_overflow": self.domains.overflow,
             "in_peers": len(self.in_peers),
             "in_peers_overflow": self.in_peers.overflow,
+            "in_ports": len(self.in_ports),
+            "lan_peers": len(self.lan_peers),
             "arp_bindings": len(self._arp),
             "arp_overflow": self.arp_overflow,
             "service_ports": len(self.service_port_counts),
