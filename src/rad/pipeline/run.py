@@ -156,6 +156,13 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
                     tau_admit, tau_alert = calibrate_thresholds(val_scores, window_s,
                                                                 float(cfg["calibration"]["alarms_per_day"]),
                                                                 float(cfg["calibration"]["admit_quantile"]))
+                    if cfg["calibration"].get("above_bootstrap"):
+                        # D47: a window as normal as the most extreme bootstrap window never alarms. RobustZ's
+                        # in-range scores share a ceiling (z = 3 on the top features), and a threshold sitting
+                        # exactly on it made windows that merely touch their training extremes alarm.
+                        from rad.models.base import score_many
+                        boot_max = float(np.max(score_many(fast, boot_rows)))
+                        tau_alert = max(tau_alert, float(np.nextafter(boot_max, np.inf)))
                     thresholds = {"tau_admit": tau_admit, "tau_alert": tau_alert}
                     if budget_factor is not None:
                         b_daily, b_total = calibrate_budgets(benign_days, float(budget_factor),
