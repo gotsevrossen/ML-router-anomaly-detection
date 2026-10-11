@@ -64,7 +64,9 @@ class DriftBudget:
         """`profile` may be shared with the disambiguation; the budget then owns adding commits to it."""
         self.profile = profile or RobustProfile(features, bootstrap_rows, fast_half_life_days, day_s, n_bins)
         self.features = self.profile.features
-        self.anchor_median = self.profile.bootstrap_median.copy()
+        # Same estimator as the fast profile (the histogram median): comparing an exact bootstrap median
+        # with a 64-bin histogram median made the binning error itself look like drift (D43 bug fix).
+        self.anchor_median = self.fast.median().copy()
         self.scale = self.profile.scale
         self.b_daily, self.b_total = float(b_daily), float(b_total)
         if measure not in ("sum", "capped_mean"):

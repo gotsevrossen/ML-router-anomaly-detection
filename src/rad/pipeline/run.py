@@ -76,9 +76,20 @@ def calibrate_budgets(days: dict[int, list[list[float]]], factor: float, measure
     keys = sorted(k for k, v in days.items() if len(v) >= 60)  # skip slivers of a day
     if len(keys) < 2:
         raise ValueError("budget calibration needs at least two benign days")
+    from rad.continual.sketch import FeatureHistograms
+
     mats = {k: np.asarray(days[k], dtype=float) for k in keys}
-    scale = robust_scale(np.vstack([mats[k] for k in keys[:-1]]))
-    med = {k: np.median(m, axis=0) for k, m in mats.items()}
+    boot = np.vstack([mats[k] for k in keys[:-1]])
+    scale = robust_scale(boot)
+    # Daily medians with the same 64-bin histograms the budget uses at run time (edges from the bootstrap),
+    # so the calibrated budget includes the binning jumps the run-time measure will see.
+    names = [str(j) for j in range(boot.shape[1])]
+    med = {}
+    for k, m in mats.items():
+        h = FeatureHistograms(names, boot.min(axis=0), boot.max(axis=0))
+        for v in m:
+            h.add_vec(v)
+        med[k] = h.median()
     from rad.continual.drift_budget import drift_measure
 
     shift = lambda a, b: drift_measure(med[a], med[b], scale, measure, cap)  # noqa: E731

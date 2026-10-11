@@ -173,3 +173,14 @@ def test_capped_mean_measure_is_not_dominated_by_a_near_constant_feature():
     m, ref = np.array([0.5, 0.5, 1.0]), np.zeros(3)
     assert drift_measure(m, ref, scale) > 1e5  # the sum explodes on the degenerate feature
     assert drift_measure(m, ref, scale, "capped_mean", 3.0) == pytest.approx((0.5 + 0.5 + 3.0) / 3)
+
+
+
+def test_no_commits_means_zero_drift_vs_anchor():
+    """The anchor and the fast profile use the same estimator, so binning error is not drift."""
+    from rad.continual.drift_budget import DriftBudget
+    rng = np.random.default_rng(0)
+    rows = [{"a": float(v), "b": float(w)} for v, w in zip(rng.lognormal(5, 2, 500), rng.integers(0, 3, 500))]
+    for measure in ("sum", "capped_mean"):
+        b = DriftBudget(["a", "b"], rows, b_daily=1.0, b_total=1.0, measure=measure)
+        assert b.drift_vs_anchor() == 0.0
