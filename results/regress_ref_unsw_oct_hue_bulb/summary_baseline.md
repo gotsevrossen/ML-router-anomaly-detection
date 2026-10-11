@@ -4,11 +4,11 @@ Windows: {'windows': 20724, 'bootstrap': 5760, 'validation': 2873, 'test_benign'
 
 FPR resolution on test = 1/12091 = 8.27e-05; TPR at smaller FPR targets is TPR at zero false positives.
 
-| detector | tpr@fpr=0.001 | tpr@fpr=0.0001 | pauc@0.01 | pauc@0.1 | tau | false_alarms_per_day | detection_rate@tau | time_to_detect_s | fit_s | score_ms_per_window | model_kb |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| robust_z_router | nan | nan | nan | nan | 0.7909 | 0.2382 | nan | nan | 0.06526 | 0.002518 | 0.2812 |
-| mad_tail_slog | nan | nan | nan | nan | 0.6938 | 3.335 | nan | nan | 0.04586 | 0.008868 | 0.25 |
-| autoencoder_slog | nan | nan | nan | nan | 0.05103 | 1.191 | nan | nan | 5.056 | 0.00744 | 2.406 |
-| iforest_ext_sparse_slog | nan | nan | nan | nan | 0.6626 | 1.667 | nan | nan | 0.4763 | 0.2623 | 766.6 |
-| hst_slog | nan | nan | nan | nan | 0.9268 | 4.287 | nan | nan | 0.8292 | 0.05408 | 549.9 |
-| kitnet | nan | nan | nan | nan | 0.3284 | 6.193 | nan | nan | 1.903 | 0.1633 | 1.672 |
+| detector | tpr@fpr=0.001 | tpr@fpr=0.0001 | pauc@0.01 | pauc@0.1 | tau | false_alarms_per_day | detection_rate@tau | time_to_detect_s | event_detection@tau | n_events | fit_s | score_ms_per_window | model_kb |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| robust_z_router | nan | nan | nan | nan | 0.7909 | 0.2382 | nan | nan | nan | 0 | 0.05803 | 0.002492 | 0.2812 |
+| mad_tail_slog | nan | nan | nan | nan | 0.6938 | 3.335 | nan | nan | nan | 0 | 0.04742 | 0.006918 | 0.25 |
+| autoencoder_slog | nan | nan | nan | nan | 0.05103 | 1.191 | nan | nan | nan | 0 | 1.444 | 0.006931 | 2.406 |
+| iforest_ext_sparse_slog | nan | nan | nan | nan | 0.6626 | 1.667 | nan | nan | nan | 0 | 0.3225 | 0.2637 | 766.6 |
+| hst_slog | nan | nan | nan | nan | 0.9268 | 4.287 | nan | nan | nan | 0 | 0.5059 | 0.05078 | 549.9 |
+| kitnet | nan | nan | nan | nan | 0.3284 | 6.193 | nan | nan | nan | 0 | 1.773 | 0.1513 | 1.672 |

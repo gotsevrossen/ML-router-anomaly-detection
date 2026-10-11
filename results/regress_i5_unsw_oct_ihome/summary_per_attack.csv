@@ -1,0 +1,4 @@
+attack,family,windows,robust_z_router,mad_tail_slog,autoencoder_slog,iforest_ext_sparse_slog,hst_slog,kitnet,ecod_tail
+ArpSpoof100L2D,ArpSpoof,21,1.0,0.0,1.0,0.9523809523809523,0.9523809523809523,1.0,1.0
+ArpSpoof10L2D,ArpSpoof,21,1.0,0.0,1.0,0.7619047619047619,0.7619047619047619,1.0,0.9523809523809523
+ArpSpoof1L2D,ArpSpoof,21,1.0,0.047619047619047616,1.0,0.7619047619047619,0.7142857142857143,1.0,1.0
