@@ -246,3 +246,20 @@ Flagged items, accepted and documented:
 - All settings were declared before their runs.
 
 **Per-attack (event) metric.** An attack episode (a contiguous run of attack windows) counts as detected if any of its windows alerts. It is reported next to per-window detection. The user's target is at least 95% detection at the benign-only threshold.
+
+## Update rule on real days (D41-D43)
+
+**D41. RQ2/RQ3 runner** ([adapt.py](../src/rad/eval/adapt.py)).
+- Setup: UNSW June devices; RobustZ router and HST; rules frozen, naive, gated, full; 24 h quarantine; k-of-n alerts 2-of-3.
+- Labels are joined afterwards for evaluation only. Capture gaps are skipped.
+- Two quarantine variants, both declared before running:
+  - *strict:* any alert during a window's stay purges it (CLAUDE.md's wording);
+  - *k-purge:* an alert purges only the 10 windows before it.
+
+**D42. Drift budgets calibrated on benign days.** `b_daily` = 2× the largest day-to-day median shift among the bootstrap and validation days; `b_total` = 2× the largest shift of any such day from day 1.
+
+**D43. Capped-mean drift measure, and an estimator fix.**
+- *Measure* (option, deviation from CLAUDE.md 2b): `mean_j min(|Δmedian_j| / IQR_j, 3)` instead of the sum. Calibrated sum-budgets ranged from 0.03 to 475 across five devices because near-constant features dominate the sum.
+- *Bug fixed:* the cumulative check compared the exact bootstrap median (anchor) with a 64-bin histogram median (fast profile). The binning error alone measured as 0.7–1.4 units of "drift", so every device was blocked at its first commit. The anchor and the calibration now use the same histogram medians; a test asserts zero drift with no commits.
+- *Result:* the full rule now commits 826–1,244 benign windows per device with RobustZ, commits 0 attack windows, and raises no notices on benign days.
+- *Open:* the boiling-frog experiment (Phase 3) is what tests whether these budgets stop slow poisoning.
