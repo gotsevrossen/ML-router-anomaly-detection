@@ -17,8 +17,10 @@ data/processed/*
 # Experiment outputs (keep summaries only)
 results/*
 !results/.gitkeep
-!results/**/summary*.csv
-!results/**/summary*.md
+!results/*/
+results/*/*
+!results/*/summary*.csv
+!results/*/summary*.md
 
 # OS / editor
 .DS_Store

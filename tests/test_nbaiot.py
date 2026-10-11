@@ -51,7 +51,7 @@ def test_end_to_end(device_dir, tmp_path):
     assert (table["pauc@0.1"] > 0.9).all()
     assert list(res["per_attack"].index) == ["gafgyt/udp", "mirai/syn"]
     out = tmp_path / "results" / "toy_nbaiot"
-    for name in ("summary_nbaiot.csv", "summary_nbaiot.md", "per_attack.csv", "config.yaml", "meta.json"):
+    for name in ("summary_nbaiot.csv", "summary_nbaiot.md", "summary_nbaiot_per_attack.csv", "config.yaml", "meta.json"):
         assert (out / name).exists()
 
 

@@ -14,7 +14,7 @@ fractions; the threshold is set on validation benign rows for `target_fpr`;
 `attack_rows_per_file` rows are sampled (seeded) from every attack CSV for the test set.
 Detectors are frozen after bootstrap.
 
-Outputs in results/<experiment>/: summary_nbaiot.csv / .md, per_attack.csv, config.yaml, meta.json.
+Outputs in results/<experiment>/: summary_nbaiot.csv / .md, summary_nbaiot_per_attack.csv, config.yaml, meta.json.
 """
 
 from __future__ import annotations
@@ -131,7 +131,7 @@ def run_nbaiot(cfg: dict[str, Any]) -> dict[str, Any]:
               "test_attack": int(len(attack)), "features": len(features)}
 
     table.to_csv(out / "summary_nbaiot.csv", index=False)
-    per_attack_df.to_csv(out / "per_attack.csv")
+    per_attack_df.to_csv(out / "summary_nbaiot_per_attack.csv")
     with open(out / "summary_nbaiot.md", "w", encoding="utf-8") as fh:
         fh.write(f"# {cfg['experiment']}\n\nRows: {counts}. Per-row metrics on N-BaIoT's 115 pre-extracted "
                  f"features (secondary benchmark; not our window features).\n\n")

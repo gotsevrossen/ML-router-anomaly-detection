@@ -1,0 +1,11 @@
+attack,hst,iforest,autoencoder,mad,kitnet
+gafgyt/combo,0.0255,0.0,0.9995,0.0,1.0
+gafgyt/junk,0.0495,0.0,1.0,0.001,1.0
+gafgyt/scan,0.2855,0.0,0.0655,0.015,1.0
+gafgyt/tcp,0.0,0.0,0.001,0.0,0.001
+gafgyt/udp,0.0,0.0,0.0005,0.0,0.001
+mirai/ack,1.0,0.0,1.0,0.0,1.0
+mirai/scan,0.0,0.0,0.0,0.0,1.0
+mirai/syn,0.001,0.0,0.6975,0.0,1.0
+mirai/udp,1.0,0.0,1.0,0.0,1.0
+mirai/udpplain,1.0,0.0,1.0,0.0,1.0
