@@ -17,9 +17,13 @@ extra term keeps scores ordered beyond the largest training value (ECOD alone sa
 at log(n + 1)), in the spirit of D25's exponential tail.
 score = squash(mean of the `top_k` largest o_j) (D15). Unsupervised, benign data only.
 
-Router note: exact mode keeps the sorted training values (n x F floats). The C port would
-keep a quantile sketch plus an exact count of each feature's most common value, which is
-what the sparse novelty counts need; that variant is future work.
+State (`stats`):
+  exact   sorted training values, n x F floats (12 MB for 25k N-BaIoT rows x 115 features).
+  sketch  per feature, fixed size: if the feature has <= `max_distinct` distinct values (counts:
+          novelty, ARP, DNS ...), every distinct value with its count, so tail counts are exact;
+          otherwise `n_quantiles` quantiles for the body plus the `tail_keep` smallest and
+          largest values kept exactly, so the rare tail (where alarms happen) stays exact.
+          About 4 KB per feature regardless of n.
 """
 
 from __future__ import annotations
@@ -34,7 +38,11 @@ from rad.models.robust_z import _slog
 
 class ECODTailDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, top_k: int = 3, tail_z: float = 3.0,
-                 min_scale: float = 0.05, window: int = 50_000) -> None:
+                 min_scale: float = 0.05, window: int = 50_000, stats: str = "exact", max_distinct: int = 256,
+                 n_quantiles: int = 257, tail_keep: int = 64) -> None:
+        if stats not in ("exact", "sketch"):
+            raise ValueError("stats must be exact|sketch")
+        self.stats, self.max_distinct, self.n_quantiles, self.tail_keep = stats, max_distinct, n_quantiles, tail_keep
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
         self.features = tuple(features)
@@ -56,6 +64,9 @@ class ECODTailDetector:
         self.sorted = np.sort(L, axis=0)
         self.n = L.shape[0]
         self.lo, self.hi = self.sorted[0], self.sorted[-1]
+        if self.stats == "sketch":
+            self._sketch = [self._sketch_col(self.sorted[:, j]) for j in range(L.shape[1])]
+            self.sorted = None  # only the fixed-size sketch is kept
         med = np.median(L, axis=0)
         base = 1.4826 * np.median(np.abs(L - med), axis=0)
         base = np.where(base > 0, base, 1.0)
@@ -68,16 +79,44 @@ class ECODTailDetector:
             self.buffer.append(v)
         self._fit()
 
+    def _sketch_col(self, col: np.ndarray) -> tuple:
+        vals, counts = np.unique(col, return_counts=True)
+        if len(vals) <= self.max_distinct:
+            cum = np.concatenate([[0], np.cumsum(counts)])
+            return ("distinct", vals, cum)
+        k = self.tail_keep
+        q = np.quantile(col, np.linspace(0, 1, self.n_quantiles))
+        return ("quantile", q, col[:k].copy(), col[-k:].copy())
+
+    def _tail_counts(self, j: int, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """(#train >= x, #train <= x) for feature j."""
+        n = self.n
+        if self.stats == "exact":
+            col = self.sorted[:, j]
+            return n - np.searchsorted(col, x, side="left"), np.searchsorted(col, x, side="right")
+        sk = self._sketch[j]
+        if sk[0] == "distinct":
+            vals, cum = sk[1], sk[2]
+            return n - cum[np.searchsorted(vals, x, side="left")], cum[np.searchsorted(vals, x, side="right")]
+        _, q, bot, top = sk
+        k = len(top)
+        p = np.linspace(0, 1, len(q))
+        ge = n * (1.0 - np.interp(x, q, p))  # body: interpolated quantiles
+        le = n * np.interp(x, q, p)
+        hi_tail = x > top[0]  # above the k-th largest value: exact rank among the kept extremes
+        ge = np.where(hi_tail, k - np.searchsorted(top, x, side="left"), ge)
+        lo_tail = x < bot[-1]
+        le = np.where(lo_tail, np.searchsorted(bot, x, side="right"), le)
+        return np.maximum(ge, 0.0), np.maximum(le, 0.0)
+
     def outlyingness(self, X: np.ndarray) -> np.ndarray:
         """Per-feature o_j for a matrix of raw feature rows (n_rows x F)."""
-        if self._stale or self.sorted is None:
+        if self._stale:
             self._fit()
         L = self._transform(np.asarray(X, dtype=float))
         o = np.empty_like(L)
         for j in range(L.shape[1]):
-            col = self.sorted[:, j]
-            ge = self.n - np.searchsorted(col, L[:, j], side="left")
-            le = np.searchsorted(col, L[:, j], side="right")
+            ge, le = self._tail_counts(j, L[:, j])
             o[:, j] = -np.log((np.minimum(ge, le) + 1.0) / (self.n + 1.0))
         o += np.maximum(L - self.hi, 0.0) / self.s_up + np.maximum(self.lo - L, 0.0) / self.s_dn
         return o
@@ -100,6 +139,10 @@ class ECODTailDetector:
         self._stale = True
 
     def model_bytes(self) -> int:
-        """Exact mode: sorted training values plus two side scales per feature (float32)."""
-        n = len(self.buffer)
-        return 4 * len(self.features) * (n + 2)
+        """Scoring state in float32: exact = sorted values; sketch = the fixed-size per-feature sketches.
+        Both add range ends and side scales (4 floats per feature)."""
+        if self.stats == "exact":
+            return 4 * len(self.features) * (len(self.buffer) + 4)
+        per = [2 * len(sk[1]) + 1 if sk[0] == "distinct" else len(sk[1]) + len(sk[2]) + len(sk[3])
+               for sk in self._sketch]
+        return 4 * (sum(per) + 4 * len(self.features))

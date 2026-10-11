@@ -39,3 +39,16 @@ def test_score_many_matches_score_one():
     det.bootstrap(_rows())
     xs = _rows(20, seed=1)
     assert np.allclose(score_many(det, xs), [det.score_one(x) for x in xs])
+
+
+def test_sketch_matches_exact_on_tails_and_is_small():
+    rng = np.random.default_rng(3)
+    rows = [{"bytes": float(rng.lognormal(8, 1)), "new_lan": float(rng.random() < 0.002)} for _ in range(6000)]
+    ex = build_detector("ecod", ["bytes", "new_lan"], {"top_k": 2})
+    sk = build_detector("ecod", ["bytes", "new_lan"], {"top_k": 2, "stats": "sketch"})
+    ex.bootstrap(rows); sk.bootstrap(rows)
+    probe = [{"bytes": b, "new_lan": n} for b in (3000.0, 2e4, 2e5, 5e6) for n in (0.0, 1.0, 3.0)]
+    a, b = score_many(ex, probe), score_many(sk, probe)
+    assert np.max(np.abs(a - b)) < 0.03  # body interpolation only; rare tails are exact
+    assert np.array_equal(np.argsort(a[[2, 5, 8, 11]]), np.argsort(b[[2, 5, 8, 11]]))
+    assert sk.model_bytes() < 4_000 and ex.model_bytes() > 40_000
