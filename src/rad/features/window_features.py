@@ -47,6 +47,11 @@ Inbound (D31, appended after the context features)
   n_new_in_peers             of those, how many are not in the committed profile; spoofed or
                              randomised sources (floods) make nearly every sender new
   n_in_ports                 distinct local destination ports of received TCP/UDP packets
+ARP spoofing (D34, appended)
+  arp_rep_in                 ARP replies received
+  n_arp_conflicts            sender IPs of received ARP packets claimed by a MAC other than the
+                             committed profile's binding for that IP, or by 2+ MACs in the window
+                             (the gateway's IP suddenly answered by the attacker's MAC)
 
 Distinct counts saturate at `window_set_cap`. Every profile lookup happens when
 the window closes, so a window is always compared with the profile as committed
@@ -62,6 +67,7 @@ from dataclasses import asdict, dataclass
 from typing import Iterable, Iterator
 
 from rad.features.packet_schema import (
+    ARP_REPLY,
     ARP_REQUEST,
     DNS_RCODE_NXDOMAIN,
     TCP_ACK,
@@ -93,6 +99,8 @@ FEATURE_NAMES: tuple[str, ...] = (
     "tod_sin", "tod_cos", "is_weekend",
     # inbound (D31; appended so the order above is unchanged)
     "n_in_peers", "n_new_in_peers", "n_in_ports",
+    # ARP spoofing (D34)
+    "arp_rep_in", "n_arp_conflicts",
 )
 
 IP_PROTO_TCP, IP_PROTO_UDP, IP_PROTO_ICMP, IP_PROTO_ICMP6 = 6, 17, 1, 58
@@ -155,6 +163,8 @@ class _Window:
         self.arp_targets = CappedSet(cap)
         self.in_peers = CappedSet(cap)
         self.in_ports = CappedSet(cap)
+        self.arp_rep_in = 0
+        self.arp_claims: dict[str, set[str]] = {}  # sender IP -> sender MACs of received ARP (<= cap IPs)
 
     def count_service_port(self, port: int) -> None:
         if port in self.service_ports or len(self.service_ports) < self.cap:
@@ -281,6 +291,10 @@ class WindowFeatureExtractor:
             if out and r.arp_op == ARP_REQUEST:
                 w.arp_req_out += 1
                 w.arp_targets.add(r.dst_ip)
+            elif not out and r.src_ip and r.src_mac:
+                w.arp_rep_in += r.arp_op == ARP_REPLY
+                if r.src_ip in w.arp_claims or len(w.arp_claims) < w.cap:
+                    w.arp_claims.setdefault(r.src_ip, set()).add(r.src_mac)
             return
 
         w.ip_pkts += 1
@@ -383,6 +397,9 @@ class WindowFeatureExtractor:
             math.sin(2 * math.pi * hour / 24), math.cos(2 * math.pi * hour / 24),
             1.0 if weekday >= 5 else 0.0,
             len(w.in_peers), sum(1 for ip in w.in_peers if not p.has_in_peer(ip)), len(w.in_ports),
+            w.arp_rep_in,
+            sum(1 for ip, macs in w.arp_claims.items()
+                if len(macs) > 1 or (p.arp_binding(ip) is not None and p.arp_binding(ip) not in macs)),
         )
         features = {name: float(v) for name, v in zip(FEATURE_NAMES, values, strict=True)}
         observation = WindowObservation(
@@ -392,6 +409,7 @@ class WindowFeatureExtractor:
             domains=tuple(w.domains),
             service_ports=tuple(w.service_ports.items()),
             in_peers=tuple(w.in_peers),
+            arp_bindings=tuple((ip, min(macs)) for ip, macs in w.arp_claims.items() if len(macs) == 1),
         )
         return WindowResult(w.start, w.end, w.n_records, w.first_pkt_index, w.last_pkt_index,
                             features, observation)

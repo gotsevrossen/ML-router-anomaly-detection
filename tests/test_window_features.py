@@ -44,7 +44,7 @@ def run(records, profile=None, commit=None, **kwargs):
 
 
 def test_feature_names_are_unique_and_in_result_order():
-    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 34
+    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 36
     (res,), _ = run([rec(T0)])
     assert tuple(res.features) == FEATURE_NAMES
 
@@ -225,3 +225,23 @@ def test_inbound_peers_new_peers_and_ports():
     assert (f0["n_in_peers"], f0["n_new_in_peers"], f0["n_in_ports"]) == (2, 2, 1)  # nothing committed yet
     assert f1["n_in_peers"] == 21 and f1["n_new_in_peers"] == 20  # 203.0.113.1 was committed in window 0
     assert f1["n_in_ports"] == 4  # 1000, 1001, 1002 and 80; outgoing packets do not count
+
+
+def test_arp_spoofing_conflicts_against_committed_binding():
+    """D34: the gateway IP answered by a new MAC is a conflict; the committed binding is not."""
+    gw, good, evil = "192.168.1.1", "14:cc:20:51:33:ea", "de:ad:be:ef:00:01"
+
+    import dataclasses
+
+    def arp_in(ts, mac, op=2):
+        r = rec(ts, "in", peer=gw, arp_op=op)
+        return dataclasses.replace(r, src_mac=mac, src_ip=gw)
+
+    learn = [arp_in(T0 + 1, good), arp_in(T0 + 2, good, op=1)]
+    spoof = [arp_in(T0 + 30 + i, evil) for i in range(5)]
+    mixed = [arp_in(T0 + 60, good), arp_in(T0 + 61, evil)]
+    results, _ = run(learn + spoof + mixed, commit=CommitPolicy("bootstrap", bootstrap_windows=1))
+    f0, f1, f2 = (r.features for r in results)
+    assert (f0["arp_rep_in"], f0["n_arp_conflicts"]) == (1, 0)
+    assert (f1["arp_rep_in"], f1["n_arp_conflicts"]) == (5, 1)
+    assert f2["n_arp_conflicts"] == 1  # two MACs claim the gateway inside one window

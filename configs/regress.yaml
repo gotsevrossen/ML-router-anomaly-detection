@@ -15,7 +15,7 @@ datasets:
     windows_tag: "_v34"
   nbaiot:
     config: configs/nbaiot_frontrunners.yaml
-    detector_overrides: {}
+    detector_overrides: {mad_tail_slog: {window: 50000}, iforest_ext_sparse_slog: {window: 50000}, autoencoder_slog: {buffer: 50000}}   # as nbaiot_improved.yaml
     devices: [Danmini_Doorbell, Ecobee_Thermostat, Ennio_Doorbell, Philips_B120N10_Baby_Monitor,
               Provision_PT_737E_Security_Camera, Provision_PT_838_Security_Camera, Samsung_SNH_1011_N_Webcam,
               SimpleHome_XCS7_1002_WHT_Security_Camera, SimpleHome_XCS7_1003_WHT_Security_Camera]
@@ -25,6 +25,7 @@ datasets:
     windows_tag: "_v34"
   unsw:
     config: configs/unsw.yaml
+    detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}}   # buffer must cover the 2-day bootstrap
     windows_tag: "_v34"
 
 detectors:

@@ -62,6 +62,7 @@ class WindowObservation:
     domains: tuple[str, ...] = ()
     service_ports: tuple[tuple[int, int], ...] = ()  # (service port, packets)
     in_peers: tuple[str, ...] = ()  # senders of received IP packets, LAN or not (D31)
+    arp_bindings: tuple[tuple[str, str], ...] = ()  # (IP, MAC) claimed by one MAC in received ARP (D34)
 
 
 class ProfileCache:
@@ -73,6 +74,9 @@ class ProfileCache:
         self.dst_ports = CappedSet(max_ports)
         self.domains = CappedSet(max_domains)
         self.in_peers = CappedSet(max_ips)
+        self.max_ips = max_ips
+        self._arp: dict[str, str] = {}  # IP -> MAC last committed (bounded by max_ips)
+        self.arp_overflow = 0
         self.max_ports = max_ports
         self.top_k_ports = top_k_ports
         self.service_port_counts: dict[int, int] = {}
@@ -82,6 +86,9 @@ class ProfileCache:
 
     def has_ip(self, ip: str) -> bool:
         return ip in self.ips
+
+    def arp_binding(self, ip: str) -> str | None:
+        return self._arp.get(ip)
 
     def has_in_peer(self, ip: str) -> bool:
         return ip in self.in_peers
@@ -102,6 +109,11 @@ class ProfileCache:
             self.ips.add(ip)
         for ip in obs.in_peers:
             self.in_peers.add(ip)
+        for ip, mac in obs.arp_bindings:
+            if ip in self._arp or len(self._arp) < self.max_ips:
+                self._arp[ip] = mac  # a committed (gated) window may legitimately rebind an IP
+            else:
+                self.arp_overflow += 1
         for port in obs.dst_ports:
             self.dst_ports.add(port)
         for domain in obs.domains:
@@ -127,6 +139,8 @@ class ProfileCache:
             "domains_overflow": self.domains.overflow,
             "in_peers": len(self.in_peers),
             "in_peers_overflow": self.in_peers.overflow,
+            "arp_bindings": len(self._arp),
+            "arp_overflow": self.arp_overflow,
             "service_ports": len(self.service_port_counts),
             "service_ports_overflow": self.service_port_overflow,
             "top_ports": list(self._top),
