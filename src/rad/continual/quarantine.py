@@ -21,7 +21,7 @@ import logging
 import math
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from rad.features.profile_cache import ProfileCache, WindowObservation
 from rad.models.base import Detector
@@ -29,6 +29,7 @@ from rad.models.base import Detector
 log = logging.getLogger(__name__)
 
 QUARANTINED, REJECTED, COMMITTED, PURGED = "quarantined", "rejected", "committed", "purged"
+BLOCKED = "blocked"  # due and clean, but refused by the drift budget (D19)
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,7 @@ class QuarantineStep:
     alert: bool
     decision: str  # this window: quarantined | rejected
     committed: list[float] = field(default_factory=list)  # earlier windows committed now
+    blocked: list[float] = field(default_factory=list)  # earlier windows refused by the commit gate now
     purged: list[float] = field(default_factory=list)  # earlier windows purged now
 
 
@@ -79,6 +81,7 @@ class QuarantineStats:
     rejected: int = 0
     committed: int = 0
     purged: int = 0
+    blocked: int = 0
     forced_releases: int = 0  # queue full before t_delay_s (irregular window spacing)
 
 
@@ -86,10 +89,15 @@ class QuarantinedLearner:
     """Wraps any `Detector` (and optionally the profile cache) with the quarantine rule."""
 
     def __init__(self, detector: Detector, cfg: QuarantineConfig, profile: ProfileCache | None = None,
-                 window_s: float = 30.0) -> None:
+                 window_s: float = 30.0, gate: Callable[[float, dict[str, float]], bool] | None = None,
+                 on_commit: Callable[[float, dict[str, float]], None] | None = None) -> None:
+        """`gate(t_now, x)` may refuse a due, clean commit (the drift budget); `on_commit` observes
+        every commit (e.g. to feed the slow anchor model)."""
         self.detector = detector
         self.cfg = cfg
         self.profile = profile
+        self.gate = gate
+        self.on_commit = on_commit
         cap = cfg.max_queue or math.ceil(cfg.t_delay_s / window_s) + 1
         self.queue: deque[_Item] = deque()
         self.max_queue = max(1, cap)
@@ -147,7 +155,14 @@ class QuarantinedLearner:
         if item.tainted:
             self._purge(item, step)
             return
+        if self.gate is not None and not self.gate(step.t, item.x):
+            self.outcome[item.t] = BLOCKED
+            self.stats.blocked += 1
+            step.blocked.append(item.t)
+            return
         self.detector.learn_one(item.x)
+        if self.on_commit is not None:
+            self.on_commit(step.t, item.x)
         if self.profile is not None and item.obs is not None:
             self.profile.commit(item.obs)
         self.outcome[item.t] = COMMITTED
