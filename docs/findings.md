@@ -463,6 +463,16 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
 - Only 18% of benign alarms are labelled drift: the reconnection event raises *diversity* features (new domains, failed TCP, ARP replies), which the volume-vs-diversity heuristic reads as an attack.
 - This is a documented failure mode of the heuristic (CLAUDE.md: report where it fails). A restart signature (many devices at once, right after a capture/network gap) is a candidate refinement.
 
+### F33. RQ3 boiling-frog experiment: naive updating is fully poisoned; the gated and full rules keep the final attack detected. [Preliminary: 2 devices, replayed days; D45]
+- **Setup.** 2 bootstrap days, 1 validation day, 14 replayed benign days with chaff growing ×(1+α) per day, then the real attack at the full rate. Variants: volumetric (10 pkt/s UDP to a new or a known destination) and behavioural (0.2 new destinations/s), each at α = 0.05 (CLAUDE.md range) and α = 0.3 (accelerated). Detector: RobustZ router; full rule as in F31.
+- **Naive** learns all 3,360 chaff windows in every variant. Its detection of the final attack falls to 0–12% (frozen detects it at 90% of windows and 100% of bursts on TP-Link, and 90/100% for Samsung's behavioural attack).
+- **Gated and full** detect the final attack exactly as well as frozen in every variant. They commit 0 chaff windows when the chaff is visible from day 1 (all α = 0.05 variants: the chaff starts at 48% of the final rate).
+- **Drift budget:** with fast behavioural chaff on TP-Link (α = 0.3), the gated rule learned 711 chaff windows and the full rule 214. On Samsung the budget barely mattered (1,671 vs 1,658 learned), and the final attack stayed detected anyway, because new destinations stay new.
+- **Limits:**
+  - Samsung's own traffic hides a 10 pkt/s volumetric flood even from the frozen model (0%), so nothing can be protected there.
+  - Replaying bootstrap days puts windows at the training extremes back in front of the model. On Samsung that alone gives 102 alerts per replay of 2018-05-28, so false alarms in this experiment are not comparable to F26/F31.
+  - A single new destination does not change the scores (the "known destination" variant gave identical results), because volume features dominate the top-3.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)

@@ -269,3 +269,10 @@ Flagged items, accepted and documented:
 - RobustZ's upper scale is the distance from the median to the largest training value, so learning windows that raise the median shrank it, and the model became more sensitive than at bootstrap (Netatmo: 1.8 → 33 false alarms per day).
 - With the option, adaptation can widen "normal" but not narrow it. How far it widens is bounded by the drift budget.
 - Declared before the run that showed Netatmo back at 1.75 per day.
+
+**D45. Boiling-frog experiment design** ([boiling_frog.py](../src/rad/attacks/boiling_frog.py), [poison.py](../src/rad/eval/poison.py), `configs/poison_unsw.yaml`).
+- Packet-level injection, so every feature and the profile cache see the chaff exactly as they would on a router.
+- Benign traffic: the device's complete capture days, replayed in a cycle with time of day preserved. Days are UTC capture days; partial days are dropped, because they inserted hours of silence.
+- Chaff runs in 5-minute bursts each hour. On chaff day k it runs at rate R(1+α)^(k−N−1), and the real attack day runs at R.
+- Benign false alarms exclude a 120 s guard after each burst, because k-of-n alerts persist briefly.
+- Declared before running, apart from the fixes noted in the commit log (partial days, burst guard, the stealthy "known destination" variant added before its first run).
