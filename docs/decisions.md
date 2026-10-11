@@ -92,3 +92,10 @@ This keeps the single-device scope (CLAUDE.md §2). Kitsune normally watches a w
 - *Refused windows get the outcome `blocked`*, a fifth outcome next to committed, quarantined, rejected and purged. It is kept separate because RQ3 needs to count what the budget stopped. Blocked windows are dropped, not re-queued, because re-queuing would only postpone the same shift.
 - *The anchor is a second detector instance*, frozen at bootstrap by default. With `update_every_s` (e.g. weekly), it learns a period's committed windows at the period boundary, and only if that period had no alert and no drift notice. A weekly anchor that absorbs a slow attack is exactly the failure mode RQ3 should quantify against the frozen default.
 - *The budget values are placeholders* until they are tuned on benign data only (Phase 3), e.g. as the largest daily and cumulative shifts seen in benign validation, plus a margin.
+
+**D20. Disambiguation details** ([disambiguation.py](../src/rad/continual/disambiguation.py), [profile_stats.py](../src/rad/continual/profile_stats.py)). CLAUDE.md calls this a hypothesis under test, so these choices are what RQ4 evaluates.
+- *Robust z is measured against the committed profile*: the decayed committed-data median (the same `RobustProfile` the drift budget uses) divided by the bootstrap-fixed scale. A z of 5 always means "5 bootstrap IQRs from what was recently committed".
+- *Groups.* `F_vol` = bytes and packets in and out. `F_div` = new external IPs, new destination ports, new domains, the failed-TCP index, distinct external prefixes, and distinct ARP targets (added per D8).
+- *Aggregation.* `z_vol` is the maximum |z| (a volume drop can be benign too, e.g. a camera switched off). `z_div` is the maximum upward z (less diversity is not attack-like).
+- *Tie-breaks.* An alert with `z_div > tau_div` is an attack, otherwise an alert where volume dominates is benign drift. An alert that neither rule explains is called `suspected_attack`: the fail-safe is to never label an unexplained alert benign.
+- *Top features* rank all features by |z| against the same profile, so explanations and states use the same reference.

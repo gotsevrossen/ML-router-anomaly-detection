@@ -25,13 +25,11 @@ from typing import Sequence
 
 import numpy as np
 
-from rad.continual.sketch import FeatureHistograms
+from rad.continual.profile_stats import RobustProfile, robust_scale  # noqa: F401 (robust_scale re-exported)
 
 log = logging.getLogger(__name__)
 
 NOTICE = "possible_slow_poisoning_or_major_change"
-IQR_TO_SIGMA = 1.349
-MEANAD_TO_SIGMA = 1.2533
 
 
 @dataclass(frozen=True)
@@ -43,34 +41,30 @@ class DriftNotice:
     message: str = NOTICE
 
 
-def robust_scale(m: np.ndarray) -> np.ndarray:
-    """Per-feature IQR, with the same fallbacks as the MAD detector for degenerate features."""
-    q25, q75 = np.quantile(m, [0.25, 0.75], axis=0)
-    iqr = q75 - q25
-    fallback = MEANAD_TO_SIGMA * np.abs(m - np.median(m, axis=0)).mean(axis=0) * IQR_TO_SIGMA
-    return np.where(iqr > 0, iqr, np.where(fallback > 0, fallback, 1.0))
-
-
 class DriftBudget:
     """Gate for commits that bounds how fast and how far the learned profile may move."""
 
     def __init__(self, features: Sequence[str], bootstrap_rows: Sequence[dict[str, float]], b_daily: float,
                  b_total: float, day_s: float = 86_400.0, fast_half_life_days: float = 1.0,
-                 n_bins: int = 64) -> None:
-        self.features = tuple(features)
-        m = np.array([[r[f] for f in self.features] for r in bootstrap_rows], dtype=float)
-        self.anchor_median = np.median(m, axis=0)
-        self.scale = robust_scale(m)
-        self.fast = FeatureHistograms.from_rows(self.features, bootstrap_rows, n_bins=n_bins)
+                 n_bins: int = 64, profile: RobustProfile | None = None) -> None:
+        """`profile` may be shared with the disambiguation; the budget then owns adding commits to it."""
+        self.profile = profile or RobustProfile(features, bootstrap_rows, fast_half_life_days, day_s, n_bins)
+        self.features = self.profile.features
+        self.anchor_median = self.profile.bootstrap_median.copy()
+        self.scale = self.profile.scale
         self.b_daily, self.b_total = float(b_daily), float(b_total)
         self.day_s = float(day_s)
-        self.decay_per_day = 0.5 ** (1.0 / fast_half_life_days)
         self._day: int | None = None
         self._day_start_median = self.fast.median()
         self.halted_today = False
         self.halted_total = False
         self.notices: list[DriftNotice] = []
         self.daily_log: list[dict[str, float]] = []  # one row per finished day, for plots and RQ3
+
+    @property
+    def fast(self):
+        """The decayed histogram of the committed (fast) profile."""
+        return self.profile.hist
 
     def shift(self, median: np.ndarray, reference: np.ndarray) -> float:
         return float(np.sum(np.abs(median - reference) / self.scale))
@@ -82,12 +76,13 @@ class DriftBudget:
         day = math.floor(t / self.day_s)
         if self._day is None:
             self._day = day
+            self.profile.advance(t)
             return
         if day == self._day:
             return
         self.daily_log.append({"day": float(self._day), "daily_shift": self.shift(self.fast.median(), self._day_start_median),
                                "drift_vs_anchor": self.drift_vs_anchor(), "halted": float(self.halted_today)})
-        self.fast.decay(self.decay_per_day ** (day - self._day))
+        self.profile.advance(t)
         self._day = day
         self._day_start_median = self.fast.median()
         self.halted_today = False
@@ -97,7 +92,7 @@ class DriftBudget:
         self._roll_day(t)
         if self.halted_today or self.halted_total:
             return False
-        v = np.array([x[f] for f in self.features], dtype=float)
+        v = self.profile.vec(x)
         self.fast.add_vec(v)
         median = self.fast.median()
         daily = self.shift(median, self._day_start_median)
