@@ -135,3 +135,16 @@ def test_monotone_scales_never_make_the_model_more_sensitive(stats):
         after = det.score_one(probe)
         if mono:
             assert after <= before + 1e-9
+
+
+
+def test_monotone_scales_keep_the_bootstrap_interval_normal_when_the_median_moves():
+    """D49: a sparse count whose median flips from 0 to 1 must not make the old zeros look unusual."""
+    boot = [{"a": 0.0}] * 400 + [{"a": 1.0}] * 100
+    det = RobustZDetector(["a"], top_k=1, stats="sketch", monotone_scales=True)
+    det.bootstrap(boot)
+    zero_before = det.score_one({"a": 0.0})
+    for _ in range(2000):
+        det.learn_one({"a": 1.0})
+    assert det.score_one({"a": 0.0}) <= max(zero_before, 0.5809)  # still within the normal ceiling
+    assert det.score_one({"a": 50.0}) > 0.6  # far outside is still anomalous

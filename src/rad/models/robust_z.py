@@ -86,6 +86,11 @@ class RobustZDetector:
         up, dn = np.maximum(up, self.min_scale), np.maximum(dn, self.min_scale)
         if self.monotone_scales and self._boot_inv is not None:
             up, dn = np.maximum(up, 1.0 / self._boot_inv[0]), np.maximum(dn, 1.0 / self._boot_inv[1])
+            # D49: the bootstrap's normal interval [lo_edge, hi_edge] (where z = tail_z) stays normal however the
+            # median moves: a sparse count whose median flips 0 -> 1 must not make the old 0s look unusual.
+            lo_edge, hi_edge = self._boot_edges
+            up = np.maximum(up, (hi_edge - med) / self.tail_z)
+            dn = np.maximum(dn, (med - lo_edge) / self.tail_z)
         if not self.two_sided:
             up = dn = np.maximum(up, dn)
         inv_up, inv_dn = 1.0 / up, 1.0 / dn
@@ -136,6 +141,8 @@ class RobustZDetector:
             self.ext_lo, self.ext_hi = lo.copy(), hi.copy()
             self._fit_sketch()
         self._boot_inv = (np.array(self.inv_up, dtype=float), np.array(self.inv_dn, dtype=float))
+        m = np.array(self.median, dtype=float)
+        self._boot_edges = (m - self.tail_z / self._boot_inv[1], m + self.tail_z / self._boot_inv[0])
 
     def score_matrix(self, X: np.ndarray) -> np.ndarray:
         """Fast path on a float matrix in feature order (what the C port does per window)."""
