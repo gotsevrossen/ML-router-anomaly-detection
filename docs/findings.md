@@ -430,6 +430,19 @@ Design decisions are explained in [decisions.md](decisions.md) (D1–D29). The b
 - Scoring 0.03 ms per row. Exact-mode state (sorted training values) is too big for a router; a quantile-sketch variant is needed.
 - **Router sketch (i8):** exact distinct-value counts for count features, and 257 quantiles plus 64 exact extremes per side for continuous ones. At most 175 KB (N-BaIoT, 115 features), against 22 MB exact, with the same per-attack detection everywhere: UNSW 95.5%, hold-out 100%, October 93.5%, Mirai and Kitsune 100%. N-BaIoT is even slightly better (86.6% against 84.4%).
 
+### F29. RQ3 on real data: naive updating learns the attacks; the quarantine keeps them out when the detector sees them. [Solid; D41]
+- UNSW June devices, real days, 24 h quarantine, alerts 2-of-3.
+- **Naive updating** commits all 2,328 attack windows. RobustZ's attack detection falls from 84% to 31%; HST's from 22% to 13%.
+- **Gated and full rules with RobustZ** commit **0** attack windows, under every variant (strict, k-purge, calibrated budgets).
+- **Bound:** HST under the gated rule committed 114 attack windows (k-purge). The quarantine admits whatever scores below `tau_admit`, so its protection is bounded by the detector's sensitivity. A weak detector lets undetected attacks in.
+
+### F30. RQ2 on real data: the update rule as specified barely adapts. Three concrete causes. [Solid; D41, D42]
+1. **Strict quarantine.** "Commit only if no alert fired during the stay", with a 24 h delay and about 1+ false alarm per day, means almost nothing survives. RobustZ committed only 1,071 benign windows over 5 devices.
+2. **Drift budgets.** The placeholder budgets (3 per day / 6 total) blocked every commit under `full`. Calibrating them from benign days (D42, 2× observed drift) gives budgets from 0.03 to 475 across devices. The CLAUDE.md drift measure (sum over features of |median shift| / IQR) is dominated by near-constant features, so it is unstable as a budget unit. This needs a robust per-feature-capped measure (D43, a deviation to document).
+3. **Learning can raise false alarms.** With k-purge, the Netatmo camera went from 1.8 to 33 false alarms per day after learning (naive: 48). The other devices were unchanged or better. So *what* is learned matters, not just whether attacks are kept out.
+
+The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design questions for the update rule, not detector questions.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)
