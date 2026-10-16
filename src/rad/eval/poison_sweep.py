@@ -136,6 +136,9 @@ def plot_curves(path: Path, curves: pd.DataFrame, metric: str, level: float) -> 
     surface, ink, ink2, band = "#fcfcfb", "#0b0b0b", "#52514e", "#e6e5e1"
     colors = dict(zip(RULE_ORDER, ("#2a78d6", "#eb6834", "#1baf7a", "#eda100")))  # validated, fixed order
     markers = dict(zip(RULE_ORDER, ("o", "s", "^", "D")))  # second encoding: identity is never colour alone
+    # Rules often coincide exactly (frozen = gated = full when nothing is learned): nested sizes, largest
+    # underneath, keep every rule visible where the lines overlap.
+    sizes = dict(zip(RULE_ORDER, ((11, 4.5), (9, 3.5), (7, 2.5), (4.5, 1.5))))
     devs, vars_ = list(dict.fromkeys(curves["device"])), list(dict.fromkeys(curves["variant"]))
     fig, axes = plt.subplots(len(devs), len(vars_), figsize=(3.2 * len(vars_), 2.4 * len(devs) + 0.8),
                              sharey=True, facecolor=surface, squeeze=False)
@@ -145,10 +148,12 @@ def plot_curves(path: Path, curves: pd.DataFrame, metric: str, level: float) -> 
             ax.set_facecolor(surface)
             ax.axhline(level, color=ink2, lw=1, ls="--", zorder=1)
             sub = curves[(curves["device"] == dev) & (curves["variant"] == var)]
-            for rule in [r for r in RULE_ORDER if r in set(sub["rule"])]:
+            for z, rule in enumerate([r for r in RULE_ORDER if r in set(sub["rule"])]):
                 s = sub[sub["rule"] == rule].sort_values("launch_day")
-                ax.plot(s["launch_day"], s[metric], color=colors[rule], lw=2, marker=markers[rule], ms=6,
-                        mec=surface, mew=1.5, label=rule, zorder=3)
+                ms, lw = sizes[rule]
+                ax.plot(s["launch_day"], s[metric], color=colors[rule], lw=lw, marker=markers[rule], ms=ms,
+                        mec=surface, mew=1.0, label=rule, zorder=3 + z)
+            ax.set_xticks(sorted(sub["launch_day"].unique()))
             ax.set_ylim(-0.04, 1.04)
             ax.set_title(f"{dev} · {var}", loc="left", fontsize=9, color=ink)
             ax.tick_params(colors=ink2, labelsize=8)
