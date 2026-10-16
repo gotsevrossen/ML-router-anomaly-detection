@@ -10,7 +10,10 @@ Stream layout (days are capture days: midnight at UTC + `day_offset_h`; UNSW's d
   days 1-2       original benign days    (bootstrap)
   day 3          original benign day     (validation)
   days 4..3+N    benign days replayed in a cycle, plus chaff at rate r_k = R * (1 + alpha)^(k - N - 1)
+                 (or, with `start_frac`, r_k = start_frac * R * (1 + alpha)^(k - 1), independent of N)
   day 4+N        benign day replayed, plus the real attack at the full rate R
+The `start_frac` schedule does not depend on N, so streams that differ only in N share the same
+chaff history up to the attack: this is what the launch-day sweep of rad.eval.poison_sweep needs (D51).
 Chaff and attack run in bursts of `burst_s` seconds starting at minute `burst_minute` of every
 hour (24 bursts a day).
 
@@ -44,6 +47,15 @@ class FrogConfig:
     burst_s: float = 300.0          # active seconds per hour
     burst_minute: int = 15
     target_ip: str = "203.0.113.50"  # "known": the device's most used external destination (stealthier)
+    start_frac: float | None = None  # chaff day 1 at start_frac * R, then x(1 + alpha) per day (D51)
+
+    def chaff_rate(self, k: int) -> float:
+        """Injected rate on day k of the campaign (1 = first chaff day, n_days + 1 = attack day)."""
+        if k == self.n_days + 1:
+            return self.final_rate
+        if self.start_frac is None:
+            return self.final_rate * (1 + self.alpha) ** (k - self.n_days - 1)
+        return self.start_frac * self.final_rate * (1 + self.alpha) ** (k - 1)
 
 
 def local_days(df: pd.DataFrame, day_offset_h: float) -> list[pd.DataFrame]:
@@ -81,7 +93,8 @@ def _burst_packets(day_start: float, rate: float, cfg: FrogConfig, dev: dict, ip
 def build_stream(benign: pd.DataFrame, cfg: FrogConfig, day_offset_h: float = 0.0) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return (records, schedule). `benign` holds only benign days of one device (packet-table columns).
 
-    schedule: one row per injected burst: start, end, day (1 = first chaff day), phase (chaff|attack), rate.
+    schedule: one row per injected burst: start, end, day (1 = first chaff day), phase (chaff|attack), rate,
+    packets (injected in that burst).
     """
     days = [d for d in local_days(benign, day_offset_h) if len(d)]
     # Replaying a partial capture day (e.g. a pcap that stops after 13 h) would insert hours of silence
@@ -110,13 +123,14 @@ def build_stream(benign: pd.DataFrame, cfg: FrogConfig, day_offset_h: float = 0.
         src_start = day_start(int(math.floor((src["ts"].iat[0] + day_offset_h * 3600) / SECONDS_PER_DAY) - first_day))
         tgt_start = day_start(2 + k)
         parts.append(src.assign(ts=src["ts"] + (tgt_start - src_start)))
-        rate = cfg.final_rate * (1 + cfg.alpha) ** (k - cfg.n_days - 1)
+        rate = cfg.chaff_rate(k)
         inj = _burst_packets(tgt_start, rate, cfg, dev, counter)
         parts.append(inj)
         phase = "attack" if k == cfg.n_days + 1 else "chaff"
         for hour in range(24):
             s = tgt_start + hour * 3600 + cfg.burst_minute * 60
-            sched.append({"start": s, "end": s + cfg.burst_s, "day": k, "phase": phase, "rate": rate})
+            n = int(((inj["ts"] >= s) & (inj["ts"] < s + cfg.burst_s)).sum())
+            sched.append({"start": s, "end": s + cfg.burst_s, "day": k, "phase": phase, "rate": rate, "packets": n})
     rec = pd.concat(parts, ignore_index=True).sort_values("ts", kind="stable").reset_index(drop=True)
     rec["pkt_index"] = np.arange(len(rec))
     return rec, pd.DataFrame(sched)

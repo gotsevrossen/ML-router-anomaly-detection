@@ -45,6 +45,60 @@ def label_windows(t: np.ndarray, ws: float, sched: pd.DataFrame) -> tuple[np.nda
     return day, phase
 
 
+def run_rule(cfg: dict, data: dict, mac: str, stream: Path, sched: pd.DataFrame, rule: str,
+             exp: str) -> tuple[dict, pd.DataFrame]:
+    """Run the pipeline on one injected stream under one update rule and score it against the schedule.
+
+    Returns the summary row (metrics only) and the per-chaff-day curve (chaff_detected, chaff_committed).
+    """
+    ws, tz = float(data.get("window_s", 30)), float(data["tz_offset_h"])
+    day_off = float(cfg.get("day_offset_h", 0.0))  # capture-day boundaries (UNSW pcaps: UTC days)
+    first = pd.read_parquet(stream, columns=["ts"])["ts"].iloc[0]
+    d0 = np.floor((first + day_off * 3600) / SECONDS_PER_DAY) * SECONDS_PER_DAY - day_off * 3600
+    pcfg = copy.deepcopy(cfg["pipeline"])
+    pcfg["update_rule"] = rule
+    det = cfg["detector"]
+    log.info("=== %s", exp)
+    res = run_pipeline({
+        "experiment": exp, "seed": cfg.get("seed", 0), "out_dir": cfg["out_dir"], "device": mac,
+        "packets": str(stream), "window_s": ws, "features": cfg.get("features", {}),
+        "detector": {"name": det["type"], "params": {k: x for k, x in det.items() if k != "type"}},
+        "split": {"bootstrap_windows": 0, "validation_windows": 0,
+                  "boot_end_ts": float(d0 + 2 * SECONDS_PER_DAY),
+                  "val_end_ts": float(d0 + 3 * SECONDS_PER_DAY)},
+        "calibration": cfg["calibration"], "pipeline": pcfg, "extractor": {"tz_offset_h": tz},
+    })
+    recs, q = res["records"], res["pipeline"].quarantine
+    final = recs["t"].map(q.outcome).fillna(recs["update_decision"]) if q is not None \
+        else recs["update_decision"]
+    t = recs["t"].to_numpy(float)
+    day, phase = label_windows(t, ws, sched)
+    alert = recs["alert"].to_numpy(bool)
+    committed = final.astype(str).eq("committed").to_numpy()
+    chaff = phase == "chaff"
+    per_day = (pd.DataFrame({"day": day[chaff], "alert": alert[chaff], "committed": committed[chaff]})
+               .groupby("day").agg(chaff_detected=("alert", "mean"), chaff_committed=("committed", "sum"))
+               .reset_index())
+    att = phase == "attack"
+    keep = att | (phase == "")
+    ev, _ = M.event_detection_rate(t[keep], att[keep].astype(int), alert[keep].astype(float), 0.5, ws)
+    # Benign = no injection, after validation, and not within guard_after_s of a burst end
+    # (k-of-n smoothing keeps an alert for a window or two after the burst stops).
+    after = np.zeros(len(t), dtype=bool)
+    for e in sched["end"].to_numpy():
+        after |= (t + ws > e) & (t < e + float(data["guard_after_s"]))
+    benign = (phase == "") & ~after & (t >= d0 + 3 * SECONDS_PER_DAY)
+    days_b = benign.sum() * ws / SECONDS_PER_DAY
+    nan = float("nan")
+    row = {"chaff_detected_first": float(per_day.chaff_detected.iloc[0]) if len(per_day) else nan,
+           "chaff_detected_last": float(per_day.chaff_detected.iloc[-1]) if len(per_day) else nan,
+           "chaff_committed": int(committed[chaff].sum()),
+           "attack_window_det": float(alert[att].mean()), "attack_event_det": ev,
+           "false_alarms_per_day": float(alert[benign].sum() / days_b) if days_b else nan,
+           "drift_notices": int(recs["drift_notice"].sum())}
+    return row, per_day
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m rad.eval.poison", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -56,7 +110,6 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(args.log_level)
     cfg = load_config(args.config)
     data = load_config(cfg["data_config"])
-    ws, tz = float(data.get("window_s", 30)), float(data["tz_offset_h"])
     day_off = float(cfg.get("day_offset_h", 0.0))  # capture-day boundaries (UNSW pcaps: UTC days)
     work = Path(cfg["work_dir"])
     work.mkdir(parents=True, exist_ok=True)
@@ -81,52 +134,11 @@ def main(argv: list[str] | None = None) -> int:
                 rec.to_parquet(stream, index=False)
                 sched.to_csv(sched_path, index=False)
             sched = pd.read_csv(sched_path)
-            first = pd.read_parquet(stream, columns=["ts"])["ts"].iloc[0]
-            d0 = np.floor((first + day_off * 3600) / SECONDS_PER_DAY) * SECONDS_PER_DAY - day_off * 3600
             for rule in cfg["update_rules"]:
-                pcfg = copy.deepcopy(cfg["pipeline"])
-                pcfg["update_rule"] = rule
-                det = cfg["detector"]
                 exp = f"{cfg['experiment']}_{dev}_{vname}_{rule}"
-                log.info("=== %s", exp)
-                res = run_pipeline({
-                    "experiment": exp, "seed": cfg.get("seed", 0), "out_dir": cfg["out_dir"], "device": mac,
-                    "packets": str(stream), "window_s": ws, "features": cfg.get("features", {}),
-                    "detector": {"name": det["type"], "params": {k: x for k, x in det.items() if k != "type"}},
-                    "split": {"bootstrap_windows": 0, "validation_windows": 0,
-                              "boot_end_ts": float(d0 + 2 * SECONDS_PER_DAY),
-                              "val_end_ts": float(d0 + 3 * SECONDS_PER_DAY)},
-                    "calibration": cfg["calibration"], "pipeline": pcfg, "extractor": {"tz_offset_h": tz},
-                })
-                recs, q = res["records"], res["pipeline"].quarantine
-                final = recs["t"].map(q.outcome).fillna(recs["update_decision"]) if q is not None \
-                    else recs["update_decision"]
-                t = recs["t"].to_numpy(float)
-                day, phase = label_windows(t, ws, sched)
-                alert = recs["alert"].to_numpy(bool)
-                committed = final.astype(str).eq("committed").to_numpy()
-                chaff = phase == "chaff"
-                per_day = (pd.DataFrame({"day": day[chaff], "alert": alert[chaff], "committed": committed[chaff]})
-                           .groupby("day").agg(chaff_detected=("alert", "mean"), chaff_committed=("committed", "sum"))
-                           .reset_index().assign(device=dev, variant=vname, rule=rule))
-                curves.append(per_day)
-                att = phase == "attack"
-                keep = att | (phase == "")
-                ev, _ = M.event_detection_rate(t[keep], att[keep].astype(int), alert[keep].astype(float), 0.5, ws)
-                # Benign = no injection, after validation, and not within guard_after_s of a burst end
-                # (k-of-n smoothing keeps an alert for a window or two after the burst stops).
-                after = np.zeros(len(t), dtype=bool)
-                for e in sched["end"].to_numpy():
-                    after |= (t + ws > e) & (t < e + float(data["guard_after_s"]))
-                benign = (phase == "") & ~after & (t >= d0 + 3 * SECONDS_PER_DAY)
-                days_b = benign.sum() * ws / SECONDS_PER_DAY
-                rows.append({"device": dev, "variant": vname, "rule": rule,
-                             "chaff_detected_first": float(per_day.chaff_detected.iloc[0]),
-                             "chaff_detected_last": float(per_day.chaff_detected.iloc[-1]),
-                             "chaff_committed": int(committed[chaff].sum()),
-                             "attack_window_det": float(alert[att].mean()), "attack_event_det": ev,
-                             "false_alarms_per_day": float(alert[benign].sum() / days_b),
-                             "drift_notices": int(recs["drift_notice"].sum())})
+                row, per_day = run_rule(cfg, data, mac, stream, sched, rule, exp)
+                rows.append({"device": dev, "variant": vname, "rule": rule, **row})
+                curves.append(per_day.assign(device=dev, variant=vname, rule=rule))
                 pd.DataFrame(rows).to_csv(out / f"summary_poison_{tag}.csv", index=False)
                 pd.concat(curves).to_csv(out / f"curves_poison_{tag}.csv", index=False)
     df = pd.DataFrame(rows)

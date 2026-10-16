@@ -1,0 +1,44 @@
+# RQ3: chaff and days until boiling-frog poisoning makes the real attack evade (D51).
+# Fixed before the first run (2026-10-16 ~10:10, US Eastern), grid included.
+# Run: python -m rad.eval.poison_sweep --config configs/poison_sweep_unsw.yaml --jobs 10
+#
+# Same devices, benign days, detector and pipeline as poison_unsw (D45, F33), except the chaff schedule:
+# chaff day k runs at start_frac * R * (1 + alpha)^(k - 1), independent of when the attack comes, and the
+# real attack (rate R) is launched after d chaff days for each d in launch_days (d = 0: no chaff).
+experiment: poison_sweep_unsw
+seed: 0
+out_dir: results
+work_dir: data/interim/poison_sweep_unsw
+data_config: configs/unsw.yaml
+devices: [samsung_camera, tplink_plug]
+day_offset_h: 0
+benign_days: [benign/18-05-28, benign/18-05-29, benign/18-05-30, benign/18-05-31]
+keep_windows: false
+fnr_levels: [0.1, 0.5, 0.9]
+
+variants:
+  # CLAUDE.md growth range: chaff starts at half the attack rate and reaches 94% of it by day 14.
+  vol_s50_a05: {kind: volumetric, final_rate: 10.0, alpha: 0.05, start_frac: 0.5, launch_days: [0, 1, 3, 7, 14]}
+  beh_s50_a05: {kind: behavioral, final_rate: 0.2, alpha: 0.05, start_frac: 0.5, launch_days: [0, 1, 3, 7, 14]}
+  # Accelerated, starting quiet: 2% of the attack rate on day 1, 79% by day 15.
+  vol_s02_a30: {kind: volumetric, final_rate: 10.0, alpha: 0.30, start_frac: 0.02, launch_days: [0, 4, 8, 12, 15]}
+  beh_s02_a30: {kind: behavioral, final_rate: 0.2, alpha: 0.30, start_frac: 0.02, launch_days: [0, 4, 8, 12, 15]}
+
+update_rules: [frozen, naive, gated, full]
+
+features:
+  exclude: [is_weekend]
+detector: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05, monotone_scales: true}
+
+calibration:
+  alarms_per_day: 1
+  admit_quantile: 0.9
+
+pipeline:   # as poison_unsw (adapt_unsw_cal3, D42-D44)
+  quarantine: {t_delay_s: 86400, purge_k: 10, taint_on_alert: false}
+  budget: {b_daily: 3.0, b_total: 6.0, calibrate_factor: 2.0, measure: capped_mean, cap: 3.0}
+  anchor: {update_every_s: null}
+  disambiguation: {tau_div: 3.0}
+  alert_k: 2
+  alert_n: 3
+  top_k: 3

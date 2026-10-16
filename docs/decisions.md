@@ -289,3 +289,12 @@ Flagged items, accepted and documented:
 **D49. RobustZ `monotone_scales` also keeps the bootstrap normal interval normal when the learned median moves.** No measurable effect on the TP-Link residual; it is kept because it removes a real failure mode (test).
 
 **D50. Phase 3c ablation** (`configs/ablation_unsw.yaml`): RobustZ, ECOD router, MAD+tail+slog, AE+slog and HST+slog × frozen, naive, gated and full × 5 UNSW June devices, with the D42–D44 and D47 settings. Results in F36.
+
+**D51. Chaff-to-FNR sweep (RQ3 metric)** ([poison_sweep.py](../src/rad/eval/poison_sweep.py), `configs/poison_sweep_unsw.yaml`).
+- ANTIDOTE's metric in its boiling-frog form: the false-negative rate on a fixed real attack, as a function of how many days of chaff came first and how much chaff that was.
+- *Schedule.* A new `start_frac` option makes chaff day k run at `start_frac * R * (1 + alpha)^(k - 1)`, so the chaff history does not depend on when the attack comes. One run per launch day d (d chaff days, then the attack at R) then samples the curve without changing the pipeline. Without `start_frac` the D45 schedule is unchanged.
+- *Launch day 0 (no chaff) is required.* It is the unpoisoned reference: a level already reached at d = 0 is reported as `baseline`, because the attack is missed without any poisoning and nothing can be attributed to the chaff.
+- *Two FNR measures.* Window FNR (attack windows without a k-of-n smoothed alert) and event FNR (bursts with no alert at all, what a user would notice). Levels 10%, 50% and 90%, not only ANTIDOTE's 50%: 10% is where poisoning first pays off, 90% is where the detector is blind to the attack.
+- *Resolution.* The crossing day is the first sampled launch day at or above the level, so the true crossing lies in (prev_day, day]. No interpolation, and no extrapolation beyond the last sampled day (`not_reached`).
+- *Chaff amount* is reported both as injected packets before the attack and as a fraction of the benign packets of the same days.
+- Grid declared before the first run (config header).
