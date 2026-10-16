@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+poison_sweep_unsw_samsung_camera_beh_s50_a05_d3_gated,gated,robust_z,11520,0.4978902304835114,0.5809414823309249,0.5543242161638141,0.8747345923046524,382,511,0,0,11138,136,246,4235,2135,5082,68

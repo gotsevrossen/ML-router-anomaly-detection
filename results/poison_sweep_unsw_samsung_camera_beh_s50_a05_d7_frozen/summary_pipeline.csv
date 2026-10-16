@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+poison_sweep_unsw_samsung_camera_beh_s50_a05_d7_frozen,frozen,robust_z,23040,0.4978902304835114,0.5809414823309249,0.5543242161638141,0.8747345923046524,1261,1358,0,0,21779,296,965,23040

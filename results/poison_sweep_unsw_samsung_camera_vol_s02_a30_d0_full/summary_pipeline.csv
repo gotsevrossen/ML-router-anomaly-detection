@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_quarantined,final_rejected,final_purged
+poison_sweep_unsw_samsung_camera_vol_s02_a30_d0_full,full,robust_z,2880,0.4978902304835114,0.5809414823309249,0.5543242161638141,0.8747345923046524,102,102,0,0,2778,81,21,1314,546,1020

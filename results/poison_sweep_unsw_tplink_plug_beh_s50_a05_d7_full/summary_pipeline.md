@@ -1,0 +1,23 @@
+# poison_sweep_unsw_tplink_plug_beh_s50_a05_d7_full
+
+| key | value |
+|---|---|
+| experiment | poison_sweep_unsw_tplink_plug_beh_s50_a05_d7_full |
+| update_rule | full |
+| detector | robust_z |
+| live_windows | 23039 |
+| tau_admit | 0.5598 |
+| tau_alert | 0.5809 |
+| b_daily | 0.01622 |
+| b_total | 0.02428 |
+| alerts | 1920 |
+| raw_alerts | 1921 |
+| drift_notices | 0 |
+| divergence | 0 |
+| state_normal | 21119 |
+| state_suspected_attack | 1768 |
+| state_suspected_benign_drift | 152 |
+| final_purged | 18875 |
+| final_rejected | 3977 |
+| final_committed | 68 |
+| final_quarantined | 119 |

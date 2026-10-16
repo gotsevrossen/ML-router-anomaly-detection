@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+poison_sweep_unsw_tplink_plug_vol_s02_a30_d12_frozen,frozen,robust_z,37440,0.5598028518341717,0.5809454597456116,0.016223613609695858,0.02428316602135891,2874,2804,0,0,34566,2694,180,37440

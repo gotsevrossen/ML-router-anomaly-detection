@@ -514,6 +514,18 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
 - **The drift budget halves what a weak detector lets in** (HST: gated 116 → full 54 attack windows), but cannot make up for a detector that does not see the attack.
 - HST, MAD and the autoencoder are low here mainly because of D47's limit (F35) and because the pipeline uses plain 2-of-3 alerts, not the dual-channel rule (D40). Their benchmark numbers (F27) are the fairer comparison of detection.
 
+### F37. Chaff-to-FNR sweep (D51): the gated and full rules were not poisoned within 15 days; naive is poisoned by the attack itself. [Preliminary: 2 devices, replayed days, RobustZ only]
+- **Setup.** As F33 (RobustZ router, same pipeline and benign days), with chaff that no longer depends on the launch day: day k at `start_frac * R * (1 + alpha)^(k - 1)`. The real attack (rate R) is launched after d chaff days, d sampled at 0, 1, 3, 7, 14 (start at 50% of R, alpha = 0.05) or 0, 4, 8, 12, 15 (start at 2% of R, alpha = 0.3). 160 runs: 2 devices × 4 variants × 5 launch days × 4 rules. Results: `results/poison_sweep_unsw_summary/`.
+- **Gated and full: FNR never rose above its unpoisoned value at any launch day,** on every variant where the unpoisoned model sees the attack. Window FNR stays at the frozen value (0.10: the first window of each burst, which 2-of-3 smoothing always misses) and no burst is missed (event FNR 0). The chaff-to-50%-FNR is therefore a lower bound: more than 15 days, and more than the largest chaff tested (on TP-Link, chaff of 5.3× and 16.5× the device's own benign packets).
+- **Quiet chaff is learned, but does not help the attacker.** Starting at 2% of R, the gated rule committed 871 (TP-Link) and 1,958 (Samsung) behavioural chaff windows, and the full rule 303 and 1,813. The final attack stayed fully detected, because the chaff that scores below `tau_admit` is far below the attack's rate, so the learned range grows too little. Once the chaff grows, it is rejected. The drift budget cut TP-Link's commits by 65% and raised 1–2 notices; on Samsung it barely mattered (as in F33).
+- **Naive is poisoned at d = 0, without any chaff** (window FNR 0.90–1.00, `baseline` status). RobustZ with `tail_quantile: 1.0` sets each upper scale from the running maximum. The first attack window raises a raw alert, but not yet a 2-of-3 alert, and is then learned, which puts the rest of the attack in range. So the naive results in F33 and F36 show one-window self-poisoning, not a slow boiling frog. This should be said in the paper; it is also a strong argument for scoring before learning plus gating.
+- **Samsung volumetric:** missed even unpoisoned (FNR 0.96–1.00, `baseline`), as in F33: nothing to protect.
+- **Limits.**
+  - Only RobustZ. HST let 116/54 attack windows in under gated/full in F36, so it is the detector where a crossing is most likely.
+  - The sweep never reached a crossing for gated/full, so it gives no chaff-to-50% number, only bounds. A slower ramp (alpha 0.01–0.05 from a quiet start) needs 30–80 days of replay.
+  - False alarms per day are not comparable to F26/F31: Samsung's frozen model gives 34–39 per day here, the bootstrap-replay artefact of F33 (D47 is not enabled in this config, to keep it identical to poison_unsw).
+- **Side note on F33.** Re-running poison_unsw `beh_a30` at HEAD gives gated/full commits of 735/215 instead of 711/214. The difference is D49 (committed after F33 ran), not the D51 refactor, which reproduces HEAD exactly. Detection, false alarms and notices are unchanged.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)
@@ -556,7 +568,7 @@ Each one was found by a test or by inspecting data, and fixed with a regression 
 |---|---|---|
 | RQ1 Feasibility | Model sizes 0.25–1 KB (robust stats) to 550 KB (HST); µs-scale scoring on a laptop; a router build of RobustZ with int16 parameters and histogram sketches | C port, OpenWrt measurements (CPU, RSS, latency, iperf3), per-packet feature cost, feature-subset sweep |
 | RQ2 Adaptation | Update rule implemented and unit-tested; evidence that false positives are drift-driven (F17) | Benign-drift simulator and long benign data; frozen vs naive vs gated vs full comparison |
-| RQ3 Poisoning | Quarantine and budget tested on a synthetic boiling-frog ramp; attack never committed on Mirai (F16) | Boiling-frog injector, chaff-to-50%-FNR, days to poison |
+| RQ3 Poisoning | Boiling-frog injector and runner (F33); chaff-to-FNR sweep: gated/full not poisoned within 15 days on 2 devices, naive poisoned by one attack window (F37) | Sweep with HST and ECOD; slower ramps over 30+ days; held-out devices |
 | RQ4 Disambiguation | 88/88 Mirai alert windows → `suspected_attack` | Real benign drift events; confusion matrix |
 
 ---

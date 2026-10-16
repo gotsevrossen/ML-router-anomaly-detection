@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed,final_rejected,final_purged,final_quarantined
+poison_sweep_unsw_tplink_plug_beh_s02_a30_d8_gated,gated,robust_z,25917,0.5598028518341717,0.5809454597456116,0.016223613609695858,0.02428316602135891,279,353,0,0,25638,262,17,18684,3629,3530,74

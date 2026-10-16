@@ -144,8 +144,9 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 27. One-command regression suite over every dataset (`rad.eval.regress`, D33), per-attack metric, and persistence / dual-channel alarms (D40). Best configuration: `configs/regress_i8.yaml`.
 28. Update rules on real days (`rad.eval.adapt`, D41–D44): naive learns every attack window (detection 84% → 31%); gated and full commit none. Budget estimator bug fixed; capped-mean measure; monotone scales.
 29. Boiling-frog injector and RQ3 runner (`rad.attacks.boiling_frog`, `rad.eval.poison`, D45).
+30. **2026-10-16.** Chaff-to-FNR sweep (`rad.eval.poison_sweep`, D51): chaff schedule independent of the launch day, 160 runs on 2 UNSW devices. Gated and full were never poisoned within 15 days; naive is poisoned by a single learned attack window (F37). Branch pushed to GitHub (it existed only in this OneDrive copy).
 
-Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F33).
+Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F37).
 
 ---
 
