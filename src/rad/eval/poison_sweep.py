@@ -19,7 +19,8 @@ Curve (one row per run):
   event_fnr       attack bursts (24 a day) with no alert at all
 Crossings (per device x variant x rule x metric x level q in `fnr_levels`):
   status    reached | not_reached (within the sampled launch days) |
-            baseline (FNR >= q already at d = 0: the attack is missed without any poisoning)
+            baseline (FNR >= q already at d = 0, with no chaff: the attack is missed anyway, or, under naive,
+            teaches itself; with RobustZ's running-extreme scales one learned attack window is enough)
   day       first sampled launch day with FNR >= q; the true crossing lies in (prev_day, day]
   chaff_packets, chaff_frac at that launch day
 Outputs in results/<experiment>_summary/: curves_*.csv, crossings_*.csv, summary_*.md, fnr_*.png,
@@ -55,8 +56,8 @@ def fnr_crossings(curve: pd.DataFrame, levels: Sequence[float], metrics: Sequenc
     """First sampled launch day at which each FNR metric reaches each level, for one run group.
 
     `curve` has one row per launch day (columns launch_day, chaff_packets, chaff_frac and the metrics)
-    and must include launch day 0, the unpoisoned reference. Levels already reached at day 0 are
-    `baseline`: the attack is missed without poisoning, so nothing can be attributed to the chaff.
+    and must include launch day 0, the reference without chaff. Levels already reached at day 0 are
+    `baseline`: nothing can be attributed to the chaff (the attack is missed anyway, or teaches itself).
     """
     c = curve.sort_values("launch_day").reset_index(drop=True)
     if c["launch_day"].iat[0] != 0:
