@@ -133,7 +133,9 @@ def evaluate(scores: np.ndarray, y: np.ndarray, split: np.ndarray, starts: np.nd
              cfg: dict[str, Any]) -> dict[str, float]:
     val = split == "validation"
     test = split == "test"
-    tau = M.threshold_for_alarm_rate(scores[val], float(cfg["threshold"]["alarms_per_day"]), window_s)
+    fixed = cfg["threshold"].get("fixed_tau")  # set by score folds that already include their thresholds (D53)
+    tau = float(fixed) if fixed is not None else \
+        M.threshold_for_alarm_rate(scores[val], float(cfg["threshold"]["alarms_per_day"]), window_s)
     y_t, s_t = y[test], scores[test]
     row: dict[str, float] = {}
     for fpr in cfg["metrics"]["fpr"]:
@@ -246,7 +248,16 @@ def run_baseline(cfg: dict[str, Any]) -> dict[str, Any]:
     persist = cfg.get("persistence")  # D40: causal k-window minimum, applied to every detector alike
     if persist:
         k = int(persist["k"])
-        if persist.get("mode", "min") == "dual":
+        if persist.get("mode", "min") == "strict_dual":
+            # D53: strict k-window persistence OR a raw window beyond everything seen in bootstrap and
+            # validation (+margin). The folded score alarms at >= 0, so the threshold is fixed at 0.
+            known, val = split == "bootstrap", split == "validation"
+            apd = float(cfg["threshold"]["alarms_per_day"])
+            all_scores = {n: M.strict_dual_alarm_score(s, starts, window_s, k, known, val, apd,
+                                                       float(persist.get("margin", 0.0)))
+                          for n, s in all_scores.items()}
+            cfg["threshold"] = {**cfg["threshold"], "fixed_tau": 0.0}
+        elif persist.get("mode", "min") == "dual":
             # Two alarm channels with half the false-alarm budget each, both set on benign validation:
             # the raw score (strong, short attacks) and the k-window minimum (weak, sustained ones).
             # Alert if either crosses its own threshold; folded into one score so every metric applies.

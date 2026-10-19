@@ -33,19 +33,21 @@ from typing import Sequence
 
 import numpy as np
 
-from rad.models.robust_z import _slog
+from rad.models.robust_z import _direction_masks, _slog
 
 
 class ECODTailDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, top_k: int = 3, tail_z: float = 3.0,
                  min_scale: float = 0.05, window: int = 50_000, stats: str = "exact", max_distinct: int = 256,
-                 n_quantiles: int = 257, tail_keep: int = 64) -> None:
+                 n_quantiles: int = 257, tail_keep: int = 64, directional: bool = False) -> None:
         if stats not in ("exact", "sketch"):
             raise ValueError("stats must be exact|sketch")
         self.stats, self.max_distinct, self.n_quantiles, self.tail_keep = stats, max_distinct, n_quantiles, tail_keep
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
         self.features = tuple(features)
+        # D53: only the attack-like side of each feature counts (FEATURE_DIRECTIONS; unknown features: both).
+        self._up, self._dn = _direction_masks(self.features, directional)
         self.slog = slog
         self.top_k = min(top_k, len(self.features))
         self.tail_z, self.min_scale = tail_z, min_scale
@@ -117,8 +119,12 @@ class ECODTailDetector:
         o = np.empty_like(L)
         for j in range(L.shape[1]):
             ge, le = self._tail_counts(j, L[:, j])
-            o[:, j] = -np.log((np.minimum(ge, le) + 1.0) / (self.n + 1.0))
-        o += np.maximum(L - self.hi, 0.0) / self.s_up + np.maximum(self.lo - L, 0.0) / self.s_dn
+            # max of the two one-sided tails = the two-sided min-count tail; a masked side contributes 0
+            o_up = -np.log((ge + 1.0) / (self.n + 1.0)) if self._up[j] else 0.0
+            o_dn = -np.log((le + 1.0) / (self.n + 1.0)) if self._dn[j] else 0.0
+            o[:, j] = np.maximum(o_up, o_dn)
+        o += (self._up * np.maximum(L - self.hi, 0.0) / self.s_up
+              + self._dn * np.maximum(self.lo - L, 0.0) / self.s_dn)
         return o
 
     def score_matrix(self, X: np.ndarray) -> np.ndarray:

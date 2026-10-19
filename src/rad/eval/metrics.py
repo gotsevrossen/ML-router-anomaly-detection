@@ -91,6 +91,48 @@ def persist_min(scores: np.ndarray, starts: np.ndarray, window_s: float, k: int)
     return out
 
 
+def persist_strict(scores: np.ndarray, starts: np.ndarray, window_s: float, k: int) -> np.ndarray:
+    """Strict k-window persistence (D53): the minimum over the last k windows once k consecutive windows
+    have been observed, NaN before that (stream start, or after a time gap).
+
+    D40's version falls back to fewer windows after a gap, so the first window after a recording gap was
+    judged on itself alone, exactly where capture artefacts sit (inter-arrival times spanning the gap).
+    A router that just restarted has no history either; it waits for k windows of evidence.
+    """
+    s = np.asarray(scores, dtype=float)
+    starts = np.asarray(starts, dtype=float)
+    out = np.full(len(s), np.nan)
+    run = 0
+    for i in range(len(s)):
+        run = run + 1 if i > 0 and starts[i] - starts[i - 1] <= window_s * 1.5 else 1
+        if run >= k:
+            out[i] = s[i - k + 1: i + 1].min()
+    return out
+
+
+def strict_dual_alarm_score(scores: np.ndarray, starts: np.ndarray, window_s: float, k: int, known: np.ndarray,
+                            val: np.ndarray, alarms_per_day: float, margin: float) -> np.ndarray:
+    """Two label-free alarm channels folded into one score that alarms at >= 0 (D53):
+
+    persistent  strict k-window minimum above max(validation threshold for `alarms_per_day`, just above
+                its largest bootstrap value), as D47 does for the raw score
+    raw         a single window more anomalous than every bootstrap and validation window, plus `margin`
+                (strong but intermittent attacks that dip below the persistent level)
+
+    `known` marks bootstrap rows, `val` validation rows. Windows without k windows of history have no
+    persistent channel; the raw channel still applies, so the folded score is always finite.
+    """
+    s = np.asarray(scores, dtype=float)
+    p = persist_strict(s, starts, window_s, k)
+    pv = p[val & np.isfinite(p)]
+    pb = p[known & np.isfinite(p)]
+    t_per = threshold_for_alarm_rate(pv, alarms_per_day, window_s) if len(pv) else np.inf
+    if len(pb):
+        t_per = max(t_per, float(np.nextafter(pb.max(), np.inf)))
+    t_raw = float(np.nextafter(s[known | val].max(), np.inf)) + margin
+    return np.maximum(np.where(np.isfinite(p), p - t_per, -np.inf), s - t_raw)
+
+
 def attack_events(starts: np.ndarray, y: np.ndarray, window_s: float) -> list[np.ndarray]:
     """Index arrays of attack episodes: runs of attack windows that follow each other in time."""
     starts, y = np.asarray(starts, dtype=float), np.asarray(y)

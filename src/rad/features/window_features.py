@@ -56,6 +56,16 @@ Service and LAN-peer novelty (D37, appended; IoT devices serve few local ports a
   n_new_in_ports             local TCP/UDP ports that received traffic and never did in the profile
   n_lan_peers                distinct LAN peer IPs of IP packets in either direction
   n_new_lan_peers            of those, how many are not in the committed profile
+Per-protocol packet counts (D53, appended)
+  tcp_pkts, udp_pkts, icmp_pkts  IP packets (both directions) by protocol: the numerators of the
+                             *_frac shares. A share alone cannot tell 1 ICMP packet from 390; the
+                             detectors score features one at a time, so the joint "many packets AND
+                             mostly ICMP" must be a feature of its own.
+
+FEATURE_DIRECTIONS (D53) says, per feature, which deviation is attack-like: "up" (only an
+increase: volumes, distinct and novelty counts, failures, ARP, ICMP), "down" (only a
+decrease: iat_mean, as floods shrink gaps; top3_port_frac, as traffic leaves the usual
+ports) or "both". Detectors with `directional: true` ignore the other side.
 
 Distinct counts saturate at `window_set_cap`. Every profile lookup happens when
 the window closes, so a window is always compared with the profile as committed
@@ -107,7 +117,18 @@ FEATURE_NAMES: tuple[str, ...] = (
     "arp_rep_in", "n_arp_conflicts",
     # service and LAN-peer novelty (D37)
     "n_new_in_ports", "n_lan_peers", "n_new_lan_peers",
+    # per-protocol packet counts (D53)
+    "tcp_pkts", "udp_pkts", "icmp_pkts",
 )
+
+# D53: which deviation is attack-like, declared from the feature definitions (not tuned on results).
+_UP = ("bytes_out", "bytes_in", "pkts_out", "pkts_in", "n_ext_dst_ips", "n_new_ext_dst_ips", "n_ext_dst_prefixes",
+       "n_dst_ports", "n_new_dst_ports", "icmp_frac", "dns_queries", "n_domains", "n_new_domains", "nxdomain",
+       "n_new_conns", "n_failed_tcp", "arp_req_out", "n_arp_targets", "n_in_peers", "n_new_in_peers", "n_in_ports",
+       "arp_rep_in", "n_arp_conflicts", "n_new_in_ports", "n_lan_peers", "n_new_lan_peers",
+       "tcp_pkts", "udp_pkts", "icmp_pkts")
+_DOWN = ("iat_mean", "top3_port_frac")
+FEATURE_DIRECTIONS: dict[str, str] = {f: "up" if f in _UP else "down" if f in _DOWN else "both" for f in FEATURE_NAMES}
 
 IP_PROTO_TCP, IP_PROTO_UDP, IP_PROTO_ICMP, IP_PROTO_ICMP6 = 6, 17, 1, 58
 _SECONDS_PER_DAY = 86_400
@@ -411,6 +432,7 @@ class WindowFeatureExtractor:
                 if len(macs) > 1 or (p.arp_binding(ip) is not None and p.arp_binding(ip) not in macs)),
             sum(1 for port in w.in_ports if not p.has_in_port(port)),
             len(w.lan_peers), sum(1 for ip in w.lan_peers if not p.has_lan_peer(ip)),
+            w.tcp, w.udp, w.icmp,
         )
         features = {name: float(v) for name, v in zip(FEATURE_NAMES, values, strict=True)}
         observation = WindowObservation(

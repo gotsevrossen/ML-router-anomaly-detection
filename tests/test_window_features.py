@@ -44,7 +44,7 @@ def run(records, profile=None, commit=None, **kwargs):
 
 
 def test_feature_names_are_unique_and_in_result_order():
-    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 39
+    assert len(FEATURE_NAMES) == len(set(FEATURE_NAMES)) == 42
     (res,), _ = run([rec(T0)])
     assert tuple(res.features) == FEATURE_NAMES
 
@@ -256,3 +256,21 @@ def test_new_service_ports_and_new_lan_peers():
     f = results[1].features
     assert f["n_new_in_ports"] == 1  # 161 is new; 53 was served before
     assert (f["n_lan_peers"], f["n_new_lan_peers"]) == (3, 2)  # .1 known; .205 and .77 new
+
+
+def test_per_protocol_counts_tell_one_ping_from_a_flood():
+    """D53: the shares are equal (all ICMP), the counts are not."""
+    (one,), _ = run([rec(T0, "in", proto=1)])
+    (flood,), _ = run([rec(T0 + i * 0.05, "in", proto=1) for i in range(390)])
+    assert one.features["icmp_frac"] == flood.features["icmp_frac"] == 1.0
+    assert (one.features["icmp_pkts"], flood.features["icmp_pkts"]) == (1, 390)
+    (mix,), _ = run([rec(T0, proto=6), rec(T0 + 1, proto=17), rec(T0 + 2, proto=17), rec(T0 + 3, arp_op=1, peer="192.168.1.1")])
+    assert (mix.features["tcp_pkts"], mix.features["udp_pkts"], mix.features["icmp_pkts"]) == (1, 2, 0)  # ARP is not IP
+
+
+def test_feature_directions_cover_every_feature():
+    from rad.features.window_features import FEATURE_DIRECTIONS
+    assert set(FEATURE_DIRECTIONS) == set(FEATURE_NAMES)
+    assert set(FEATURE_DIRECTIONS.values()) <= {"up", "down", "both"}
+    assert FEATURE_DIRECTIONS["n_new_ext_dst_ips"] == "up" and FEATURE_DIRECTIONS["iat_mean"] == "down"
+    assert FEATURE_DIRECTIONS["conn_dur_mean"] == "both"

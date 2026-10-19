@@ -40,6 +40,16 @@ def _slog(m: np.ndarray) -> np.ndarray:
     return np.sign(m) * np.log1p(np.abs(m))
 
 
+def _direction_masks(features: Sequence[str], directional: bool) -> tuple[np.ndarray, np.ndarray]:
+    """(upper side counts, lower side counts) per feature (D53); both sides when not directional."""
+    n = len(features)
+    if not directional:
+        return np.ones(n, dtype=bool), np.ones(n, dtype=bool)
+    from rad.features.window_features import FEATURE_DIRECTIONS
+    d = [FEATURE_DIRECTIONS.get(f, "both") for f in features]
+    return np.array([x != "down" for x in d]), np.array([x != "up" for x in d])
+
+
 def _quantize(v: np.ndarray) -> np.ndarray:
     """Round to int16 mantissas with one power-of-two exponent per feature (block floating point)."""
     e = np.ceil(np.log2(np.maximum(np.abs(v), 1e-300))) - 14  # leaves headroom inside int16
@@ -50,12 +60,13 @@ class RobustZDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, two_sided: bool = True,
                  tail_quantile: float = 1.0, tail_z: float = 3.0, top_k: int = 3, stats: str = "exact",
                  window: int = 2880, n_bins: int = 64, precision: str = "float32", min_scale: float = 0.0,
-                 monotone_scales: bool = False) -> None:
+                 monotone_scales: bool = False, directional: bool = False) -> None:
         if stats not in ("exact", "sketch") or precision not in ("float32", "int16"):
             raise ValueError("stats must be exact|sketch and precision float32|int16")
         if not 0.5 <= tail_quantile <= 1.0 or top_k < 1:
             raise ValueError("need tail_quantile in [0.5, 1] and top_k >= 1")
         self.features = tuple(features)
+        self._up, self._dn = _direction_masks(self.features, directional)  # D53
         self.slog, self.two_sided = slog, two_sided
         self.tail_quantile, self.tail_z = tail_quantile, tail_z
         self.top_k = min(top_k, len(self.features))
@@ -152,7 +163,7 @@ class RobustZDetector:
             else:
                 self._fit_sketch()
         d = self._transform(np.asarray(X, dtype=np.float32)) - self.median
-        z = np.where(d >= 0, d * self.inv_up, -d * self.inv_dn)
+        z = np.where(d >= 0, d * self.inv_up * self._up, -d * self.inv_dn * self._dn)
         k = self.top_k
         r = np.partition(z, z.shape[1] - k, axis=1)[:, -k:].mean(axis=1) if k > 1 else z.max(axis=1)
         lg = np.log1p(np.maximum(r, 0.0).astype(np.float64))
