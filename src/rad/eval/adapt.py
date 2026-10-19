@@ -13,7 +13,11 @@ evaluation only:
   window_detection       attack windows that alert
   attack_committed       attack windows the rule let into the model (poisoning; should be 0)
   benign_committed       benign windows learned (adaptation)
-Outputs: results/<experiment>_<device>_<detector>_<rule>/ (pipeline outputs) and
+  alerts_<truth>_as_<state>  RQ4 confusion matrix: alerted windows by truth (attack | benign | guard)
+                         and output state (attack = suspected_attack, drift = suspected_benign_drift)
+  quiet_top_z_p50 / _gt3 explanation sanity (D52): median |z| of the top feature on benign windows
+                         without an alert, and the share above tau_div = 3 (should be small)
+Outputs:results/<experiment>_<device>_<detector>_<rule>/ (pipeline outputs) and
 results/<experiment>_summary/summary_adapt.csv / .md.
 """
 
@@ -49,6 +53,12 @@ def evaluate_records(recs: pd.DataFrame, final: pd.Series, iv: pd.DataFrame, win
     days = benign.sum() * window_s / SECONDS_PER_DAY
     committed = final.astype(str).eq("committed").to_numpy()
     rate, n_ev = M.event_detection_rate(starts, y, alert.astype(float), 0.5, window_s)
+    state = recs["state"].to_numpy()
+    truth = {"attack": y == 1, "benign": benign, "guard": (y == 0) & guard}
+    confusion = {f"alerts_{t}_as_{s}": int((alert & m & (state == full)).sum()) for t, m in truth.items()
+                 for s, full in (("attack", "suspected_attack"), ("drift", "suspected_benign_drift"))}
+    quiet = benign & ~alert
+    top_z = recs["top_features"].map(lambda tf: abs(tf[0][1]) if tf else np.nan).to_numpy(dtype=float)[quiet]
     return {
         "false_alarms_per_day": float(alert[benign].sum() / days) if days else float("nan"),
         "event_detection": rate, "n_events": n_ev,
@@ -57,6 +67,9 @@ def evaluate_records(recs: pd.DataFrame, final: pd.Series, iv: pd.DataFrame, win
         "attack_committed": int((committed & (y == 1)).sum()),
         "benign_committed": int((committed & (y == 0)).sum()),
         "drift_notices": int(recs["drift_notice"].sum()),
+        **confusion,
+        "quiet_top_z_p50": float(np.nanmedian(top_z)) if len(top_z) else float("nan"),
+        "quiet_top_z_gt3": float((top_z > 3).mean()) if len(top_z) else float("nan"),
     }
 
 
@@ -113,10 +126,13 @@ def main(argv: list[str] | None = None) -> int:
     with open(out / f"summary_adapt{tag}.md", "w", encoding="utf-8") as fh:
         fh.write(f"# {cfg['experiment']}\n\n")
         for metric in ("false_alarms_per_day", "event_detection", "window_detection", "attack_committed",
-                       "benign_committed", "drift_notices"):
+                       "benign_committed", "drift_notices", "quiet_top_z_p50", "quiet_top_z_gt3"):
             piv = df.pivot_table(index=["detector", "rule"], columns="device", values=metric)
             piv["mean"] = piv.mean(axis=1)
             fh.write(f"## {metric}\n\n{_markdown_table(piv.reset_index())}\n\n")
+        conf = [c for c in df.columns if c.startswith("alerts_")]
+        fh.write("## RQ4: alerted windows by truth and state (sum over devices)\n\n")
+        fh.write(_markdown_table(df.groupby(["detector", "rule"])[conf].sum().reset_index()) + "\n")
     log.info("Adaptation summary -> %s", out)
     return 0
 

@@ -65,16 +65,50 @@ def test_from_dict():
     assert cfg.tau_div == 5 and cfg.div_features == ("n_failed_tcp",)
 
 
-def test_robust_profile_z_and_decay():
+def _sparse_rows(n=2000, seed=0):
+    """A busy feature, a sparse count (mostly 0, rarely 1-3, IQR 0) and a constant one."""
+    rng = np.random.default_rng(seed)
+    return [{"a": float(v), "s": float(rng.choice([0, 0, 0, 0, 0, 0, 0, 0, 1, 3])), "k": 0.0}
+            for v in rng.lognormal(8, 1, n)]
+
+
+def test_explanation_z_keeps_the_bootstrap_range_within_tail_z():
+    """D52: no bootstrap window explains itself with |z| > 3, sparse counts included."""
+    rows = _sparse_rows()
+    p = RobustProfile(["a", "s", "k"], rows)
+    zmax = max(abs(v) for r in rows for v in p.robust_z(r).values())
+    assert zmax <= 3.0 + 1e-9
+    m = np.array([[r["a"], r["s"]] for r in rows])
+    edge = p.robust_z({"a": m[:, 0].max(), "s": 3.0, "k": 0.0})
+    # The centre is the 64-bin histogram median (a bin centre), not the exact one, so the edge lands near 3.
+    assert edge["a"] == pytest.approx(3.0, abs=0.15) and edge["s"] == pytest.approx(3.0, abs=0.15)
+
+
+def test_explanation_z_still_flags_novelty_on_sparse_and_constant_features():
+    p = RobustProfile(["a", "s", "k"], _sparse_rows())
+    z = p.robust_z({"a": float(np.exp(8)), "s": 40.0, "k": 140.0})
+    assert z["s"] > 3 and z["k"] > 3  # 40 new domains / 140 new IPs are beyond anything in bootstrap
+    assert z["s"] < 20  # and on a readable scale (the raw-IQR version gave thousands here)
+    assert abs(z["a"]) < 1
+
+
+def test_drift_budget_scale_is_unchanged_by_explanation_scales():
+    from rad.continual.profile_stats import robust_scale
+    rows = _sparse_rows()
+    p = RobustProfile(["a", "s", "k"], rows)
+    m = np.array([[r[f] for f in ("a", "s", "k")] for r in rows])
+    assert np.array_equal(p.scale, robust_scale(m))
+
+
+def test_robust_profile_median_moves_and_decays():
     rng = np.random.default_rng(0)
     rows = [{"a": float(v), "k": 0.0} for v in rng.normal(10, 2, 1000)]
     p = RobustProfile(["a", "k"], rows, half_life_days=1.0)
-    z = p.robust_z({"a": 10.0 + p.scale[0] * 3, "k": 5.0})
-    assert z["a"] == pytest.approx(3.0, abs=0.2)
-    assert z["k"] == pytest.approx(5.0, abs=0.1)  # constant feature: unit scale
     p.advance(0.0)
     for _ in range(3000):
         p.add({"a": 20.0, "k": 0.0})
     assert p.median()[0] > 15  # committed data moved the median
+    assert abs(p.robust_z({"a": 20.0, "k": 0.0})["a"]) < 0.5  # explanations follow the committed profile
+    assert abs(p.robust_z({"a": 10.0, "k": 0.0})["a"]) <= 3.0  # the old normal stays normal (as D49)
     p.advance(86_400.0 * 10)  # ten days of decay without commits leaves quantiles unchanged
     assert p.median()[0] > 15

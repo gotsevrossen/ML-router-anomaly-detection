@@ -1,0 +1,30 @@
+# D52 re-run of adapt_unsw_cal3_d47.yaml: identical settings, explanation z-scores in slog space with
+# range-calibrated scales (affects state and top_features only). Declared 2026-10-19 before running.
+# D44: as cal2, with RobustZ scales that never shrink below bootstrap (monotone_scales). Fixed before running.
+# Run: python -m rad.eval.adapt --config configs/adapt_unsw.yaml
+experiment: adapt_unsw_cal3_d52
+seed: 0
+out_dir: results
+data_config: configs/unsw.yaml        # devices, days, split (2 d bootstrap, 1 d validation), labels, gaps
+
+features:
+  exclude: [is_weekend]
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05, monotone_scales: true}
+
+update_rules: [gated, full]
+
+calibration:
+  alarms_per_day: 1        # tau_alert on benign validation (CLAUDE.md §8)
+  admit_quantile: 0.9
+  above_bootstrap: true   # D47, declared before running
+
+pipeline:
+  quarantine: {t_delay_s: 86400, purge_k: 10, taint_on_alert: false}   # 24 h; an alert purges only the 10 windows before it
+  budget: {b_daily: 3.0, b_total: 6.0, calibrate_factor: 2.0, measure: capped_mean, cap: 3.0}   # D42 + D43
+  anchor: {update_every_s: null}      # frozen anchor
+  disambiguation: {tau_div: 3.0}
+  alert_k: 2
+  alert_n: 3
+  top_k: 3

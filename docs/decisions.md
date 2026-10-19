@@ -298,3 +298,11 @@ Flagged items, accepted and documented:
 - *Resolution.* The crossing day is the first sampled launch day at or above the level, so the true crossing lies in (prev_day, day]. No interpolation, and no extrapolation beyond the last sampled day (`not_reached`).
 - *Chaff amount* is reported both as injected packets before the attack and as a fraction of the benign packets of the same days.
 - Grid declared before the first run (config header).
+
+**D52. Explanation and disambiguation z-scores use RobustZ's recipe** ([profile_stats.py](../src/rad/continual/profile_stats.py)).
+- *Problem.* `top_features` and the three-state output used raw values over raw bootstrap IQRs (D20). Sparse counts have an IQR near zero, so on every quiet benign window of the UNSW runs the top feature had |z| > 10 (device medians 26 to 2,894). Explanations named the same features before and during an attack, and `z_div > tau_div = 3` held almost always, which drove the RQ4 labels (F32).
+- *Fix.* Same reference (the decayed committed median, D20), but values in slog space and two-sided scales fixed at bootstrap, calibrated so the edge of the bootstrap range is z = 3 (sigma from the IQR, then mean absolute deviation, then 1; floor 0.05 as D32). As in D49, the bootstrap's normal interval stays normal when the committed median moves. A bootstrap window never explains itself with |z| > 3, so `tau_div = 3` now means "beyond anything seen in bootstrap".
+- *Not changed.* Scores, alerts and learning; the drift budget keeps its raw IQR scale (D19, D42-D43).
+- *Detector-agnostic on purpose,* so RQ4 compares update rules and detectors on the same explanation. It costs 4 numbers per feature on the router.
+- `rad.eval.adapt` now writes the RQ4 confusion matrix and an explanation sanity check (`quiet_top_z_p50`, `quiet_top_z_gt3`); F32's matrix had been computed outside the repo.
+- Re-runs declared before running: `configs/adapt_unsw_cal3_d52.yaml`, `configs/drift_unsw_d52.yaml` (copies of the D47 configs).
