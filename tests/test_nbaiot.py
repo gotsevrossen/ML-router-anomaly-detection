@@ -59,3 +59,12 @@ def test_threshold_for_fpr():
     s = np.arange(1000, dtype=float)
     assert threshold_for_fpr(s, 0.01) == 990  # top 10 may alert
     assert threshold_for_fpr(s, 0.0001) > 999
+
+
+def test_afterimage_jitter_columns_keep_weights():
+    """D54: jitter mean/variance carry timestamps on new channels; the jitter weights are packet counts."""
+    from rad.eval.nbaiot import afterimage_jitter_columns
+    cols = ["MI_dir_L5_weight", "HH_jit_L5_weight", "HH_jit_L5_mean", "HH_jit_L5_variance", "HH_L5_mean",
+            "HH_jit_L0.01_mean", "HH_jit_L0.01_variance", "HpHp_L5_mean"]
+    assert afterimage_jitter_columns(cols) == ["HH_jit_L5_mean", "HH_jit_L5_variance", "HH_jit_L0.01_mean",
+                                               "HH_jit_L0.01_variance"]

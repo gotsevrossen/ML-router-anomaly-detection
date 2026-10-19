@@ -83,6 +83,7 @@ def run_nbaiot_all(rc: dict[str, Any], dets: dict, tag: str) -> list[pd.DataFram
         c["device_dir"] = str(Path(base["device_dir"]).parent / dev)
         c["experiment"] = f"{c['experiment']}_{dev}"
         c["detectors"] = {k: v for k, v in dets.items() if k != "kitsune"}
+        c.update(rc.get("config_overrides") or {})  # e.g. drop_afterimage_jitter (D54)
         t = run_nbaiot(c)["table"]
         t.insert(0, "unit", dev)
         out.append(t)

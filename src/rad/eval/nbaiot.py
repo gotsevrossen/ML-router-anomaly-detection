@@ -44,7 +44,19 @@ DEFAULTS: dict[str, Any] = {
     "attack_rows_per_file": 2000,
     "threshold": {"target_fpr": 0.001},
     "metrics": {"fpr": [1e-3, 1e-4], "pauc_max_fpr": [0.01, 0.1]},
+    "drop_afterimage_jitter": False,
 }
+
+
+def afterimage_jitter_columns(columns: list[str]) -> list[str]:
+    """N-BaIoT's channel-jitter mean/variance columns, which carry absolute timestamps (D54).
+
+    Kitsune's AfterImage computes the first jitter on a new channel as the packet's timestamp minus 0, so the
+    jitter mean of a new channel is a Unix time (about 1.5e9 s) and its variance about (t/2)^2, decaying slowly
+    afterwards. Attack files were recorded after the benign file, so these values order rows by recording date:
+    a leak, not behaviour. The jitter weights (packet counts) are unaffected and kept.
+    """
+    return [c for c in columns if c.startswith("HH_jit") and not c.endswith("_weight")]
 
 
 def resolve_config(cfg: dict[str, Any]) -> dict[str, Any]:
@@ -93,6 +105,9 @@ def run_nbaiot(cfg: dict[str, Any]) -> dict[str, Any]:
 
     benign, attack = load_device(Path(cfg["device_dir"]), int(cfg["attack_rows_per_file"]), rng)
     features = list(benign.columns)
+    if cfg["drop_afterimage_jitter"]:
+        drop = set(afterimage_jitter_columns(features))
+        features = [f for f in features if f not in drop]
     n = len(benign)
     n_boot = int(cfg["split"]["bootstrap_frac"] * n)
     n_val = int(cfg["split"]["validation_frac"] * n)

@@ -1,0 +1,54 @@
+# i10 (D54, D55), declared 2026-10-19 before running. As i9, plus:
+#   D54  N-BaIoT: drop the AfterImage jitter mean/variance columns (absolute timestamps on new channels)
+#   D55  RobustZ on window datasets: tail_quantile 0.995 (scales from the 99.5th percentile, not the maximum),
+#        chosen on UNSW June; not on N-BaIoT, where it collapses detection
+# i9 (D53), declared 2026-10-19 before running. Changes against i8, all developed on UNSW June (development set):
+#   features  + tcp_pkts, udp_pkts, icmp_pkts (windows re-extracted as "_v42")
+#   detectors only the two front-runners (RobustZ and ECOD router builds), with directional: true
+#   alarms    strict_dual: strict 8-window persistence (no alarm without 8 observed windows) with a threshold
+#             above both the validation level and the bootstrap maximum, OR a raw window 0.02 beyond
+#             everything seen in bootstrap + validation
+# Target (user, 2026-10-19): >= 99% of attack episodes caught at test FPR < 0.1%, thresholds benign-only.
+# Regression suite (python -m rad.eval.regress --config configs/regress.yaml --tag <name> [--ref <tag>]).
+# The model portfolio, run unchanged on every dataset. Change detectors here (or the feature code, with a
+# new windows_tag) and compare against the previous tag; drops in attacks caught or rises in false
+# positives on any dataset are flagged.
+out_dir: results
+persistence: {mode: strict_dual, k: 8, margin: 0.02}
+# i3 = i2 + ARP-spoofing features (D34); windows re-extracted as "_v39". Declared before running.
+# line; regress_i2.yaml also adds the D32 resolution floor. All variants share the "_v34" windows.
+exclude_features: []
+
+datasets:
+  mirai:
+    detector_overrides: {hst_slog: {window_size: 50}, robust_z_router: {tail_quantile: 0.995}}   # Mirai bootstrap = 60 windows
+    features_config: configs/features_kitsune_mirai.yaml
+    baseline_config: configs/baseline_kitsune_mirai_improved.yaml
+    windows_tag: "_v42"
+  nbaiot:
+    config: configs/nbaiot_frontrunners.yaml
+    config_overrides: {drop_afterimage_jitter: true}   # D54
+    detector_overrides: {mad_tail_slog: {window: 50000}, iforest_ext_sparse_slog: {window: 50000}, autoencoder_slog: {buffer: 50000}}   # as nbaiot_improved.yaml
+    devices: [Danmini_Doorbell, Ecobee_Thermostat, Ennio_Doorbell, Philips_B120N10_Baby_Monitor,
+              Provision_PT_737E_Security_Camera, Provision_PT_838_Security_Camera, Samsung_SNH_1011_N_Webcam,
+              SimpleHome_XCS7_1002_WHT_Security_Camera, SimpleHome_XCS7_1003_WHT_Security_Camera]
+  kitsune_suite:
+    config: configs/kitsune_suite.yaml
+    detector_overrides: {hst_slog: {window_size: 20}, robust_z_router: {tail_quantile: 0.995}}   # smallest bootstrap = 20 windows
+    windows_tag: "_v42"
+  unsw:
+    config: configs/unsw.yaml
+    detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}, robust_z_router: {tail_quantile: 0.995}}   # buffer must cover the 2-day bootstrap
+    windows_tag: "_v42"
+  unsw_oct:
+    config: configs/unsw_oct.yaml
+    detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}, robust_z_router: {tail_quantile: 0.995}}
+    windows_tag: "_v42"
+  unsw_late:
+    config: configs/unsw_late.yaml
+    detector_overrides: {mad_tail_slog: {window: 5760}, iforest_ext_sparse_slog: {window: 5760}, robust_z_router: {tail_quantile: 0.995}}
+    windows_tag: "_v42"
+
+detectors:
+  robust_z_router: {type: robust_z, stats: sketch, precision: int16, min_scale: 0.05, directional: true}
+  ecod_router: {type: ecod, top_k: 3, tail_z: 3.0, min_scale: 0.05, stats: sketch, directional: true}
