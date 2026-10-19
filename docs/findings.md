@@ -462,6 +462,7 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
 - Precision of "suspected attack": 95%.
 - Only 18% of benign alarms are labelled drift: the reconnection event raises *diversity* features (new domains, failed TCP, ARP replies), which the volume-vs-diversity heuristic reads as an attack.
 - This is a documented failure mode of the heuristic (CLAUDE.md: report where it fails). A restart signature (many devices at once, right after a capture/network gap) is a candidate refinement.
+- **Corrected by F38 (D52):** these labels used inflated z-scores. With fixed explanations, attack alerts labelled attack fall from 88% to 81% (ICMP floods were labelled attack by accident); precision is unchanged.
 
 ### F33. RQ3 boiling-frog experiment: naive updating is fully poisoned; the gated and full rules keep the final attack detected. [Preliminary: 2 devices, replayed days; D45]
 - **Setup.** 2 bootstrap days, 1 validation day, 14 replayed benign days with chaff growing ×(1+α) per day, then the real attack at the full rate. Variants: volumetric (10 pkt/s UDP to a new or a known destination) and behavioural (0.2 new destinations/s), each at α = 0.05 (CLAUDE.md range) and α = 0.3 (accelerated). Detector: RobustZ router; full rule as in F31.
@@ -526,6 +527,28 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
   - False alarms per day are not comparable to F26/F31: Samsung's frozen model gives 34–39 per day here, the bootstrap-replay artefact of F33 (D47 is not enabled in this config, to keep it identical to poison_unsw).
 - **Side note on F33.** Re-running poison_unsw `beh_a30` at HEAD gives gated/full commits of 735/215 instead of 711/214. The difference is D49 (committed after F33 ran), not the D51 refactor, which reproduces HEAD exactly. Detection, false alarms and notices are unchanged.
 
+### F38. Explanations fixed (D52); RQ4 re-measured: firmware updates are now recognised as drift, but the heuristic mislabels volume-type attacks. [Solid on UNSW June and the drift streams]
+- **The bug.** `top_features` and the three-state label used raw values over raw bootstrap IQRs. On 100% of quiet benign windows (benign, no alert) the top |z| was above 10, with device medians of 26–2,894. An ARP-spoofing alert on the Samsung camera was explained as "816 new domains".
+- **After D52** (slog, range-calibrated scales, same committed reference): quiet benign windows have a top |z| of 1.8–2.9 (median per device) and 0–0.3% exceed 3. The same alert now reads `arp_rep_in +5.2`. Scores, alerts, detection, false alarms and learning are identical to the D49 runs (checked metric by metric), so only the labels and explanations changed.
+- **RQ4 on real attack days** (5 devices, RobustZ, full rule; alerted windows):
+
+  | Truth | → attack (D49 → D52) | → benign drift (D49 → D52) |
+  |---|---|---|
+  | Attack | 1,508 → 1,381 | 207 → 334 |
+  | Benign | 42 → 43 | 6 → 5 |
+  | Post-attack guard | 30 → 27 | 56 → 59 |
+
+  - Precision of `suspected_attack` is unchanged (95.4% → 95.2%), but recall over attack alerts falls from 87.9% to 80.5%.
+  - By attack family (share labelled attack): SYN floods and SYN reflection 100% before and after; PingOfDeath 91% → 46%; Smurf 92% → 48%; ARP spoofing 47% → 40%; SSDP 0% → 0%.
+  - **F32 overstated the heuristic.** The ICMP floods had been labelled attack largely by accident: noise in the diversity features pushed `z_div` over 3. With honest z-scores, volume attacks are labelled drift, exactly as the volume-vs-diversity rule says. The rule cannot tell a flood from a usage increase.
+  - ARP spoofing and SSDP stay mostly "drift" partly because the diversity group was never extended with the D31/D34/D37 novelty features (`arp_rep_in`, `n_arp_conflicts`, `n_new_in_*`, `n_new_lan_peers`), unlike D8's `n_arp_targets`. Not changed here: doing so on the same data would tune the hypothesis on its evaluation set.
+- **RQ4 with scripted benign drift** (share of post-event alarms labelled drift, D49 → D52):
+  - Firmware update: Samsung 0–5% → 100% under every rule; TP-Link 4–8% → 49–80%.
+  - Usage increase, TP-Link: 14–19% → 32–36% (gated, full). Samsung stays 100%.
+  - App reinstall, TP-Link: 11–18% → 11–24%. A reinstall brings new domains and servers, which is diversity by definition.
+- **Benign alarms on real days are still mostly called attacks** (5 of 48 labelled drift), as F32 found: the reconnection event raises diversity features.
+- **Implication.** The volume/diversity split is a weak RQ4 hypothesis: it now works for pure volume or schedule changes, but by construction it also calls volume attacks benign. Report both directions. Candidate refinements, to be declared and tested on held-out data: add the newer novelty features to the diversity group; treat ICMP/protocol-mix shifts as attack-like; require persistence before calling anything benign drift.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)
@@ -569,7 +592,7 @@ Each one was found by a test or by inspecting data, and fixed with a regression 
 | RQ1 Feasibility | Model sizes 0.25–1 KB (robust stats) to 550 KB (HST); µs-scale scoring on a laptop; a router build of RobustZ with int16 parameters and histogram sketches | C port, OpenWrt measurements (CPU, RSS, latency, iperf3), per-packet feature cost, feature-subset sweep |
 | RQ2 Adaptation | Update rule implemented and unit-tested; evidence that false positives are drift-driven (F17) | Benign-drift simulator and long benign data; frozen vs naive vs gated vs full comparison |
 | RQ3 Poisoning | Boiling-frog injector and runner (F33); chaff-to-FNR sweep: gated/full not poisoned within 15 days on 2 devices, naive poisoned by one attack window (F37) | Sweep with HST and ECOD; slower ramps over 30+ days; held-out devices |
-| RQ4 Disambiguation | 88/88 Mirai alert windows → `suspected_attack` | Real benign drift events; confusion matrix |
+| RQ4 Disambiguation | Confusion matrix on real attack days and scripted drift, after the explanation fix (F38): `suspected_attack` precision 95%; firmware updates recognised as drift (49–100%); volume attacks (ICMP floods) mislabelled as drift | A better drift-vs-attack signal, declared and tested on held-out data; real benign drift from the testbed |
 
 ---
 

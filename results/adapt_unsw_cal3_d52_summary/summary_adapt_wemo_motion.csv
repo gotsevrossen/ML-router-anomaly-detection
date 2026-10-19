@@ -1,0 +1,3 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+wemo_motion,robust_z_router,gated,0.0,0.7083333333333334,24,0.5705765407554672,503,0,1085,0,206,81,0,0,7,5,2.855,0.0006291286568103177,1085,3023,0
+wemo_motion,robust_z_router,full,0.0,0.7083333333333334,24,0.5705765407554672,503,0,1085,0,206,81,0,0,7,5,2.855,0.0006291286568103177,1085,3019,0

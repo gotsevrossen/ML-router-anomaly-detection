@@ -145,8 +145,9 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 28. Update rules on real days (`rad.eval.adapt`, D41–D44): naive learns every attack window (detection 84% → 31%); gated and full commit none. Budget estimator bug fixed; capped-mean measure; monotone scales.
 29. Boiling-frog injector and RQ3 runner (`rad.attacks.boiling_frog`, `rad.eval.poison`, D45).
 30. **2026-10-16.** Chaff-to-FNR sweep (`rad.eval.poison_sweep`, D51): chaff schedule independent of the launch day, 160 runs on 2 UNSW devices. Gated and full were never poisoned within 15 days; naive is poisoned by a single learned attack window (F37). Branch pushed to GitHub (it existed only in this OneDrive copy).
+31. **2026-10-19.** Explanation z-scores fixed (D52): `top_features` and the three-state label used raw values over raw IQRs, which gave |z| > 10 on every ordinary window. RQ4 re-measured (F38) with a reproducible confusion matrix in `rad.eval.adapt`: firmware updates are now recognised as drift, and F32's attack-label rate was partly an artefact.
 
-Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F37).
+Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F38).
 
 ---
 

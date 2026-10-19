@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,alerts,raw_alerts,drift_notices,divergence,state_normal,final_committed
+drift_unsw_d52_wemo_switch_reinstall_naive,naive,robust_z,20159,0.5156227095647876,0.5914802671583829,0.08411487371946565,0.10430674985992697,0,1,0,0,20159,20159
