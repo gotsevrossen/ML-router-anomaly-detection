@@ -549,6 +549,23 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
 - **Benign alarms on real days are still mostly called attacks** (5 of 48 labelled drift), as F32 found: the reconnection event raises diversity features.
 - **Implication.** The volume/diversity split is a weak RQ4 hypothesis: it now works for pure volume or schedule changes, but by construction it also calls volume attacks benign. Report both directions. Candidate refinements, to be declared and tested on held-out data: add the newer novelty features to the diversity group; treat ICMP/protocol-mix shifts as attack-like; require persistence before calling anything benign drift.
 
+### F39. ECOD meets >= 99% of attacks at FPR < 0.1% on the June devices and Mirai, not on unseen devices (D53). [Solid on UNSW June/late; Negative on UNSW October]
+- regress_i9 (official runner; ECOD router, directional, per-protocol counts, strict dual alarms):
+
+  | Dataset | Attack episodes caught | Test FPR (benign windows) | Target met |
+  |---|---|---|---|
+  | UNSW June, 5 devices (development) | 100% (111/111) | 0.091% (29 of 32,005) | yes |
+  | UNSW later days, same devices (hold-out) | 100% (35/35) | 0.000% (0 of 48,323) | yes |
+  | Kitsune Mirai | 100% | 0% (44 benign test windows only) | yes, weak FPR resolution |
+  | UNSW October, 5 unseen devices | 100% (46/46) | 12.2% (Echo 56%, Chromecast 2.6%, Hue 1.9%, iHome 0.22%, LIFX 0.14%) | no |
+  | Kitsune suite | 100% | 24% of about 86 benign windows | no; 6-13 min of benign data cannot calibrate 0.1% |
+  | N-BaIoT (per row, its own features) | 86.7% of rows | 0.22% | no (secondary) |
+
+- RobustZ with the same settings: June 93.7% / 0.21%, later days 100% / 0.10%, October 93.5% / 57%. ECOD is the model that meets the target.
+- All of ECOD's 29 June false windows are two benign reconnection bursts 18 and 45 min after a 14 h capture outage (a DNS burst on the camera, a traffic burst on the switch). The cost of 8-window persistence is a median delay to first detection of 90-210 s.
+- **October fails structurally.** The Echo's behaviour shifted after a 3-day capture gap: its median benign test window scores above the highest validation window. The quarantine never learns a change that looks this unusual (by design, F34), so it needs an operator decision ("expected", then re-learn) or more than 2 days of training data per device. The own testbed (2-4 weeks) addresses the second.
+- **Caveats.** June selected every setting (k, margin, features); the later days were inspected while designing strict persistence; October was not inspected for any D53 choice and is the honest test of transfer to new devices. One seed; laptop Python.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)

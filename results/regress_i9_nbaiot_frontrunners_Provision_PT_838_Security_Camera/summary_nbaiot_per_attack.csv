@@ -1,0 +1,11 @@
+attack,robust_z_router,ecod_router
+gafgyt/combo,0.9995,0.9995
+gafgyt/junk,1.0,1.0
+gafgyt/scan,0.9935,0.999
+gafgyt/tcp,0.0,0.0
+gafgyt/udp,0.0,0.0
+mirai/ack,0.9985,0.9985
+mirai/scan,1.0,1.0
+mirai/syn,1.0,1.0
+mirai/udp,1.0,1.0
+mirai/udpplain,1.0,1.0

@@ -1,0 +1,10 @@
+attack,family,windows,robust_z_router,ecod_router
+ArpSpoof100L2D,ArpSpoof,21,1.0,1.0
+ArpSpoof10L2D,ArpSpoof,21,1.0,1.0
+ArpSpoof1L2D,ArpSpoof,21,1.0,1.0
+UdpDevice100L2D,UdpDevice,21,1.0,1.0
+UdpDevice100W2D,UdpDevice,21,1.0,1.0
+UdpDevice10L2D,UdpDevice,21,1.0,1.0
+UdpDevice10W2D,UdpDevice,20,1.0,1.0
+UdpDevice1L2D,UdpDevice,21,1.0,1.0
+UdpDevice1W2D,UdpDevice,21,1.0,1.0

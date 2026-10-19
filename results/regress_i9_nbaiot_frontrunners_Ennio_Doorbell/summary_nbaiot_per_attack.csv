@@ -1,0 +1,6 @@
+attack,robust_z_router,ecod_router
+gafgyt/combo,0.9995,0.9995
+gafgyt/junk,1.0,1.0
+gafgyt/scan,0.999,0.999
+gafgyt/tcp,0.9995,0.001
+gafgyt/udp,0.9995,0.002

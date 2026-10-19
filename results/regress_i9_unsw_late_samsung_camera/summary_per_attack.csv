@@ -1,0 +1,10 @@
+attack,family,windows,robust_z_router,ecod_router
+Snmp100L2D2W,Snmp,20,0.7,1.0
+Snmp10L2D2W,Snmp,20,0.6,1.0
+Snmp1L2D2W,Snmp,21,0.0,0.6666666666666666
+TcpSynDevice100W2D,TcpSynDevice,21,1.0,0.9523809523809523
+TcpSynDevice10W2D,TcpSynDevice,21,1.0,0.9523809523809523
+TcpSynDevice1W2D,TcpSynDevice,21,0.9523809523809523,0.6666666666666666
+TcpSynReflection100W2D2W,TcpSynReflection,21,1.0,1.0
+TcpSynReflection10W2D2W,TcpSynReflection,20,1.0,1.0
+TcpSynReflection1W2D2W,TcpSynReflection,21,1.0,0.7142857142857143
