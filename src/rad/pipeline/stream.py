@@ -28,6 +28,7 @@ from rad.continual.disambiguation import DisambiguationConfig, classify, group_z
 from rad.continual.drift_budget import DriftBudget
 from rad.continual.profile_stats import RobustProfile
 from rad.continual.quarantine import COMMITTED, REJECTED, QuarantineConfig, QuarantinedLearner
+from rad.pipeline.alarm import StrictDualAlarm
 from rad.eval import metrics as M
 from rad.features.profile_cache import ProfileCache, WindowObservation
 from rad.models.base import Detector
@@ -48,12 +49,16 @@ class PipelineConfig:
     alert_n: int = 3
     top_k: int = 3
     profile_half_life_days: float = 1.0
+    # D53: {"mode": "k_of_n"} (alert_k/alert_n above) or {"mode": "strict_dual", "k": 8, "margin": 0.02}
+    alarm: dict[str, Any] = field(default_factory=lambda: {"mode": "k_of_n"})
 
     def __post_init__(self) -> None:
         if self.update_rule not in UPDATE_RULES:
             raise ValueError(f"update_rule must be one of {UPDATE_RULES}, got {self.update_rule!r}")
         if not 1 <= self.alert_k <= self.alert_n:
             raise ValueError("need 1 <= alert_k <= alert_n")
+        if self.alarm.get("mode", "k_of_n") not in ("k_of_n", "strict_dual"):
+            raise ValueError(f"alarm mode must be k_of_n or strict_dual, got {self.alarm.get('mode')!r}")
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "PipelineConfig":
@@ -93,7 +98,11 @@ class DevicePipeline:
     def __init__(self, device: str, features: Sequence[str], detector_factory: Callable[[], Detector],
                  bootstrap_rows: Sequence[dict[str, float]], cfg: PipelineConfig, tau_admit: float, tau_alert: float,
                  window_s: float = 30.0, profile_cache: ProfileCache | None = None,
-                 bootstrapped_fast: Detector | None = None) -> None:
+                 bootstrapped_fast: Detector | None = None, alarm: StrictDualAlarm | None = None) -> None:
+        """`alarm`: the calibrated D53 strict dual alarm when cfg.alarm["mode"] == "strict_dual"."""
+        if cfg.alarm.get("mode", "k_of_n") == "strict_dual" and alarm is None:
+            raise ValueError("alarm mode strict_dual needs a calibrated StrictDualAlarm (see rad.pipeline.alarm)")
+        self.alarm = alarm
         self.device = device
         self.features = tuple(features)
         self.cfg = cfg
@@ -157,7 +166,10 @@ class DevicePipeline:
 
         raw_alert = score >= self.tau_alert
         self.recent.append(raw_alert)
-        alert = sum(self.recent) >= self.cfg.alert_k
+        if self.alarm is not None:  # D53: strict persistence OR a raw window beyond everything benign seen
+            alert = self.alarm.update(t, score)[0]
+        else:
+            alert = sum(self.recent) >= self.cfg.alert_k
         persistence = sum(self.recent) / self.cfg.alert_n
         magnitude = float(np.clip((score - self.tau_admit) / max(1e-12, 1.0 - self.tau_admit), 0.0, 1.0))
         z = self.robust.robust_z(x)

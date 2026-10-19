@@ -37,6 +37,7 @@ from rad.features.extract import read_records
 from rad.features.profile_cache import ProfileCache
 from rad.features.window_features import FEATURE_NAMES, WindowFeatureExtractor
 from rad.models import build_detector
+from rad.pipeline.alarm import StrictDualAlarm, calibrate_strict_dual
 from rad.pipeline.stream import DevicePipeline, PipelineConfig, calibrate_thresholds
 from rad.utils.config import load_config, save_resolved_config
 from rad.utils.log import setup_logging
@@ -126,6 +127,8 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
 
     boot_rows: list[dict[str, float]] = []
     val_scores: list[float] = []
+    boot_starts: list[float] = []
+    val_starts: list[float] = []
     benign_days: dict[int, list[list[float]]] = {}  # day index -> bootstrap/validation rows (D42)
     t_first: float | None = None
     fast = None
@@ -145,12 +148,14 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
                 benign_days.setdefault(int((res.start - t_first) // 86_400), []).append([x[f] for f in features])
             if in_boot:
                 boot_rows.append(x)
+                boot_starts.append(res.start)
                 profile_cache.commit(res.observation)  # bootstrap is assumed clean (CLAUDE.md §8)
             elif in_val:
                 if fast is None:
                     fast = factory()
                     fast.bootstrap(boot_rows)
                 val_scores.append(float(fast.score_one(x)))
+                val_starts.append(res.start)
             else:
                 if pipe is None:
                     tau_admit, tau_alert = calibrate_thresholds(val_scores, window_s,
@@ -177,8 +182,19 @@ def run_pipeline(cfg: dict[str, Any]) -> dict[str, Any]:
                         thresholds.update({"b_daily": b_daily, "b_total": b_total})
                     log.info("Calibrated on %d validation windows: tau_admit=%.4f tau_alert=%.4f",
                              len(val_scores), tau_admit, tau_alert)
+                    alarm = None
+                    if pcfg.alarm.get("mode", "k_of_n") == "strict_dual":  # D53
+                        from rad.models.base import score_many
+                        k, margin = int(pcfg.alarm.get("k", 8)), float(pcfg.alarm.get("margin", 0.0))
+                        t_per, t_raw = calibrate_strict_dual(
+                            boot_starts, score_many(fast, boot_rows), val_starts, val_scores, k, window_s,
+                            float(cfg["calibration"]["alarms_per_day"]), margin)
+                        alarm = StrictDualAlarm(k, t_per, t_raw, window_s)
+                        alarm.prime(val_starts, val_scores)  # live windows continue the validation history
+                        thresholds.update({"t_per": t_per, "t_raw": t_raw})
                     pipe = DevicePipeline(cfg["device"], features, factory, boot_rows, pcfg, tau_admit, tau_alert,
-                                          window_s=window_s, profile_cache=profile_cache, bootstrapped_fast=fast)
+                                          window_s=window_s, profile_cache=profile_cache, bootstrapped_fast=fast,
+                                          alarm=alarm)
                 rec = pipe.process(res.start, x, res.observation)
                 fh.write(json.dumps(rec) + "\n")
             n += 1
