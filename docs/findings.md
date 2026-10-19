@@ -412,6 +412,7 @@ Design decisions are explained in [decisions.md](decisions.md) (D1–D29). The b
 - Cost: false alarms rise, roughly ×1–2 on UNSW (2–12 per day) and much more on the October attack days (see D36).
 
 ### F27. Where the ≥95% per-attack target stands (i7, benign-only thresholds). [Solid]
+- **Correction (F40, D54):** ECOD's N-BaIoT figures here used the timestamp-carrying jitter columns; without them ECOD catches 80.0% of attack rows, not 84-87%.
 
 | Dataset | ≥95% | Below |
 |---|---|---|
@@ -425,6 +426,7 @@ Design decisions are explained in [decisions.md](decisions.md) (D1–D29). The b
 - The remaining misses are mainly UDP floods and SNMP on two June devices.
 
 ### F28. ECOD (D39) adds a strong, different model to the portfolio. [Preliminary]
+- **Correction (F40, D54):** ECOD's N-BaIoT figures here used the timestamp-carrying jitter columns; without them ECOD catches 80.0% of attack rows, not 84-87%.
 - On window data with persistence it is the best on UNSW and the temporal hold-out.
 - On N-BaIoT: 84.4% caught at 0.23% FPR (above the 0.1% target), pAUC@0.01 95.8.
 - Scoring 0.03 ms per row. Exact-mode state (sorted training values) is too big for a router; a quantile-sketch variant is needed.
@@ -566,6 +568,20 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
 - **October fails structurally.** The Echo's behaviour shifted after a 3-day capture gap: its median benign test window scores above the highest validation window. The quarantine never learns a change that looks this unusual (by design, F34), so it needs an operator decision ("expected", then re-learn) or more than 2 days of training data per device. The own testbed (2-4 weeks) addresses the second.
 - **Caveats.** June selected every setting (k, margin, features); the later days were inspected while designing strict persistence; October was not inspected for any D53 choice and is the honest test of transfer to new devices. One seed; laptop Python.
 
+### F40. Model-specific improvements and an N-BaIoT data leak (D54, D55). [Solid]
+- **N-BaIoT leak.** The AfterImage jitter mean/variance columns carry absolute timestamps on new channels (D54). ECOD's N-BaIoT detection relied on it: with the columns dropped, attack rows caught fall from 86.7% to 80.0%, and Gafgyt floods caught from 55.5% to 22.2%, while false positives fall from 0.22% to 0.14%. **RobustZ is unaffected** (88.9% -> 88.8%, FPR 0.12%). The ECOD N-BaIoT numbers in F27 and F28 are therefore inflated, and the RobustZ ones (F7, F9) stand.
+- **N-BaIoT ceiling.** Without the leak, the remaining misses are the spoofed Gafgyt TCP/UDP floods: per row, a flood packet looks like a benign first packet from a new host on every feature (F10). Our window features catch floods with per-window counts of new senders, which N-BaIoT lacks. No change chosen on the development device improved it (D55).
+- **RobustZ on windows (D55, `tail_quantile` 0.995), regress_i10:**
+
+  | Dataset | RobustZ i9 | RobustZ i10 | ECOD (i9 = i10) |
+  |---|---|---|---|
+  | UNSW June (development) | 93.7% / 0.209% | 96.4% / 0.081% | 100% / 0.091% |
+  | UNSW later days | 100% / 0.099% | 100% / 0.002% | 100% / 0.000% |
+  | Mirai | 100% / 0% | 100% / 0% | 100% / 0% |
+  | UNSW October | 93.5% / 57.2% | 100% / 60.4% | 100% / 12.2% |
+
+  (attack episodes caught / test FPR). RobustZ's remaining 4 June misses are 1 pkt/s floods on the camera that streams UDP: within range by distance, rare by rank. That is ECOD's strength, so the two models are complementary.
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)
@@ -581,6 +597,7 @@ Each one was found by a test or by inspecting data, and fixed with a regression 
 8. **Truncated capture files (D36).** A pcapng cut off mid-record crashed the reader; it now keeps every complete frame.
 9. **Kitsune score cache.** It stored squashed values. It was converted exactly to raw RMSE maxima, with no ties introduced.
 
+10. **AfterImage jitter timestamps in N-BaIoT (D54).** The first jitter on a new channel is the absolute timestamp, and attack files were recorded later. ECOD's N-BaIoT results relied on it (F40). Found while asking why floods were caught on some devices only.
 ---
 
 ## 4. Threats to validity and limitations (list them all in the paper)

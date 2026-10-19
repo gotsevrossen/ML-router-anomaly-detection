@@ -1,0 +1,3 @@
+detector,tpr@fpr=0.001,tpr@fpr=0.0001,pauc@0.01,pauc@0.1,tau,false_alarms_per_day,detection_rate@tau,time_to_detect_s,event_detection@tau,n_events,fit_s,score_ms_per_window,model_kb
+robust_z_router,1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,1.0,1,0.002917999983765185,0.004199581663026844,0.3427734375
+ecod_router,1.0,1.0,1.0,1.0,0.0,0.0,1.0,0.0,1.0,1,0.0013494000304490328,0.007843096286572796,6.89453125

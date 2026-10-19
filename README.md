@@ -147,8 +147,9 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 30. **2026-10-16.** Chaff-to-FNR sweep (`rad.eval.poison_sweep`, D51): chaff schedule independent of the launch day, 160 runs on 2 UNSW devices. Gated and full were never poisoned within 15 days; naive is poisoned by a single learned attack window (F37). Branch pushed to GitHub (it existed only in this OneDrive copy).
 31. **2026-10-19.** Explanation z-scores fixed (D52): `top_features` and the three-state label used raw values over raw IQRs, which gave |z| > 10 on every ordinary window. RQ4 re-measured (F38) with a reproducible confusion matrix in `rad.eval.adapt`: firmware updates are now recognised as drift, and F32's attack-label rate was partly an artefact.
 32. **2026-10-19.** Target >= 99% of attacks at FPR < 0.1% (D53, regress_i9): per-protocol packet counts, direction-aware ECOD/RobustZ, strict dual alarms. ECOD meets it on the UNSW June devices (100% / 0.091%), their later days (100% / 0.000%) and Mirai; it fails on the unseen October devices (12.2% FPR, behaviour shift) (F39).
+33. **2026-10-19.** Model-specific work (D54, D55, regress_i10): N-BaIoT's AfterImage jitter columns leak timestamps, and ECOD relied on them (86.7% -> 80.0% without; RobustZ unaffected at 88.8%). RobustZ with 99.5th-percentile scales on windows: UNSW June 96.4% / 0.081%, later days 100% / 0.002% (F40).
 
-Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F39).
+Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F40).
 
 ---
 
