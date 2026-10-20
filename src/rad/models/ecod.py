@@ -39,7 +39,8 @@ from rad.models.robust_z import _direction_masks, _slog
 class ECODTailDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, top_k: int = 3, tail_z: float = 3.0,
                  min_scale: float = 0.05, window: int = 50_000, stats: str = "exact", max_distinct: int = 256,
-                 n_quantiles: int = 257, tail_keep: int = 64, directional: bool = False) -> None:
+                 n_quantiles: int = 257, tail_keep: int = 64, directional: bool = False,
+                 refit_every: int = 1) -> None:
         if stats not in ("exact", "sketch"):
             raise ValueError("stats must be exact|sketch")
         self.stats, self.max_distinct, self.n_quantiles, self.tail_keep = stats, max_distinct, n_quantiles, tail_keep
@@ -54,6 +55,13 @@ class ECODTailDetector:
         self.buffer: deque[np.ndarray] = deque(maxlen=window)
         self.sorted: np.ndarray | None = None
         self._stale = False
+        # D57: rebuild the statistics after every `refit_every` learned windows instead of after each one.
+        # A rebuild sorts the whole buffer, so per-window refits made long learning runs quadratic in time
+        # (and are not something a router could do every 30 s). Learning windows wait in the buffer meanwhile.
+        if refit_every < 1:
+            raise ValueError("refit_every must be >= 1")
+        self.refit_every = int(refit_every)
+        self._pending = 0
 
     def matrix(self, xs: Sequence[dict[str, float]]) -> np.ndarray:
         return np.array([[x[f] for f in self.features] for x in xs], dtype=float)
@@ -142,7 +150,10 @@ class ECODTailDetector:
 
     def learn_one(self, x: dict[str, float]) -> None:
         self.buffer.append(self._transform(self.matrix([x])[0]))
-        self._stale = True
+        self._pending += 1
+        if self._pending >= self.refit_every:
+            self._pending = 0
+            self._stale = True
 
     def model_bytes(self) -> int:
         """Scoring state in float32: exact = sorted values; sketch = the fixed-size per-feature sketches.

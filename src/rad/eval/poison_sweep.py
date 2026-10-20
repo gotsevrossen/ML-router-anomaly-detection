@@ -109,20 +109,33 @@ def _stream_for(cfg: dict, data: dict, dev: str, vname: str, d: int) -> tuple[Pa
 
 
 def _run_task(cfg: dict, data: dict, dev: str, vname: str, d: int, log_level: str) -> list[dict]:
-    """One device x variant x launch day, all update rules (a worker process)."""
+    """One device x variant x launch day, all update rules (a worker process).
+
+    Each run's curve row is saved to <summary>/rows/<run>.json as soon as it finishes, and a run whose row
+    exists is not repeated, so an interrupted sweep resumes where it stopped.
+    """
     setup_logging(log_level)
-    stream, sched, totals = _stream_for(cfg, data, dev, vname, d)
+    rows_dir = Path(cfg["out_dir"]) / f"{cfg['experiment']}_summary" / "rows"
+    rows_dir.mkdir(parents=True, exist_ok=True)
     mac = data["devices"][dev]
-    rows = []
+    rows, stream = [], None
     for rule in cfg["update_rules"]:
         exp = f"{cfg['experiment']}_{dev}_{vname}_d{d}_{rule}"
+        done = rows_dir / f"{exp}.json"
+        if done.exists():
+            rows.append(json.loads(done.read_text(encoding="utf-8")))
+            continue
+        if stream is None:
+            stream, sched, totals = _stream_for(cfg, data, dev, vname, d)
         row, _ = run_rule(cfg, data, mac, stream, sched, rule, exp)
         if not cfg.get("keep_windows", False):  # per-window records are large; the curve keeps what RQ3 needs
             (Path(cfg["out_dir"]) / exp / "windows.jsonl").unlink(missing_ok=True)
-        rows.append({"device": dev, "variant": vname, "rule": rule, "launch_day": d, **totals,
-                     "chaff_committed": row["chaff_committed"], "window_fnr": 1.0 - row["attack_window_det"],
-                     "event_fnr": 1.0 - row["attack_event_det"], "false_alarms_per_day": row["false_alarms_per_day"],
-                     "drift_notices": row["drift_notices"]})
+        out = {"device": dev, "variant": vname, "rule": rule, "launch_day": d, **totals,
+               "chaff_committed": row["chaff_committed"], "window_fnr": 1.0 - row["attack_window_det"],
+               "event_fnr": 1.0 - row["attack_event_det"], "false_alarms_per_day": row["false_alarms_per_day"],
+               "drift_notices": row["drift_notices"]}
+        done.write_text(json.dumps(out), encoding="utf-8")
+        rows.append(out)
     return rows
 
 

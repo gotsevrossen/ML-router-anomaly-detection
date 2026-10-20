@@ -53,3 +53,25 @@ def test_directional_detectors_ignore_the_benign_side(name, params):
         assert two.score_one(x) > 0.5 and one.score_one(x) < two.score_one(x)
     assert one.score_one(flood) == pytest.approx(two.score_one(flood), rel=1e-6)
     assert one.score_one(small) == pytest.approx(two.score_one(small), rel=1e-6)
+
+
+def test_ecod_refit_every_batches_learning():
+    """D57: refit_every=1 is the old behaviour; with N, the model changes after every N learned windows."""
+    rng = np.random.default_rng(2)
+    feats = ["pkts_in", "bytes_in"]
+    rows = [{"pkts_in": float(v), "bytes_in": float(v * 100)} for v in rng.integers(50, 150, 500)]
+    new = [{"pkts_in": 400.0, "bytes_in": 40_000.0}] * 10
+    probe = {"pkts_in": 400.0, "bytes_in": 40_000.0}
+    every1 = build_detector("ecod", feats, {"type": "ecod", "stats": "sketch"})
+    every5 = build_detector("ecod", feats, {"type": "ecod", "stats": "sketch", "refit_every": 5})
+    every1.bootstrap(rows); every5.bootstrap(rows)
+    before = every5.score_one(probe)
+    for i, x in enumerate(new, 1):
+        every1.learn_one(x); every5.learn_one(x)
+        if i == 4:
+            assert every5.score_one(probe) == before  # nothing refitted yet
+        if i == 5:
+            assert every5.score_one(probe) < before  # refitted after 5
+    assert every1.score_one(probe) == pytest.approx(every5.score_one(probe))  # same data after 10
+    with pytest.raises(ValueError):
+        build_detector("ecod", feats, {"type": "ecod", "refit_every": 0})

@@ -82,3 +82,11 @@ def test_sweep_end_to_end(tmp_path):
     for f in ("summary_all.md", "window_fnr_all.png", "event_fnr_all.png", "meta_all.json", "config_all.yaml"):
         assert (out / f).exists()
     assert not (tmp_path / "res" / "sweep_t_plug_loud_d1_naive" / "windows.jsonl").exists()  # keep_windows: false
+    # Resumable: finished runs are not repeated (their rows are reused), and the outputs are identical.
+    row = out / "rows" / "sweep_t_plug_loud_d1_gated.json"
+    stamp = row.stat().st_mtime_ns
+    import shutil
+    shutil.rmtree(tmp_path / "res" / "sweep_t_plug_loud_d1_gated")
+    assert main(["--config", str(tmp_path / "cfg.yaml"), "--log-level", "WARNING"]) == 0
+    assert row.stat().st_mtime_ns == stamp and not (tmp_path / "res" / "sweep_t_plug_loud_d1_gated").exists()
+    assert len(pd.read_csv(out / "curves_all.csv")) == 6  # the reused rows complete the curve

@@ -1,5 +1,7 @@
 # D53/D56 re-run of poison_sweep_unsw (D51) with ECOD (directional, per-protocol counts) and the strict dual
 # alarm, declared 2026-10-19 before running. Same streams (work_dir), grid and pipeline otherwise.
+# Amended 2026-10-19 ~22:40 after the first attempt stalled (ECOD refits on every learned window made long
+# gated/full runs quadratic): ECOD refit_every 120 (D57). No results of the first attempt were used.
 # RQ3: chaff and days until boiling-frog poisoning makes the real attack evade (D51).
 # Fixed before the first run (2026-10-16 ~10:10, US Eastern), grid included.
 # Run: python -m rad.eval.poison_sweep --config configs/poison_sweep_unsw.yaml --jobs 10
@@ -30,7 +32,7 @@ update_rules: [frozen, naive, gated, full]
 
 features:
   exclude: [is_weekend]
-detector: {type: ecod, top_k: 3, tail_z: 3.0, min_scale: 0.05, stats: sketch, directional: true}
+detector: {type: ecod, top_k: 3, tail_z: 3.0, min_scale: 0.05, stats: sketch, directional: true, refit_every: 120}
 
 calibration:
   alarms_per_day: 1
