@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_suspected_attack,state_normal,state_suspected_benign_drift,final_rejected
+adapt_unsw_oct_d60_chromecast_robust_z_router_frozen,frozen,robust_z,12091,0.5488104053503989,0.5875298336139015,0.3153286037782149,0.3754092363797828,0.5798100553226951,0.6075298336139016,421,482,0,0,303,11670,118,12091

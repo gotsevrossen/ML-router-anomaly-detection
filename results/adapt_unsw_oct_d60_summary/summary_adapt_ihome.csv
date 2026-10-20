@@ -1,0 +1,7 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+ihome,ecod_router,frozen,6.47191011235955,1.0,3,0.9365079365079365,63,0,0,0,1,58,26,1,4,0,1.35,0.005755755755755756,,0,0
+ihome,ecod_router,gated,6.2322097378277155,1.0,3,0.9365079365079365,63,0,4138,0,1,58,25,1,4,0,1.35,0.0058386854616732,4138.0,1400,0
+ihome,ecod_router,full,6.47191011235955,1.0,3,0.9365079365079365,63,0,22,5,1,58,26,1,4,0,1.35,0.005755755755755756,22.0,1390,4135
+ihome,robust_z_router,frozen,2865.61797752809,1.0,3,1.0,63,0,0,0,2,61,5121,6834,7,5,1.35,0.016666666666666666,,0,0
+ihome,robust_z_router,gated,2865.61797752809,1.0,3,1.0,63,0,0,0,2,61,5121,6834,7,5,1.35,0.016666666666666666,,0,0
+ihome,robust_z_router,full,2865.61797752809,1.0,3,1.0,63,0,0,0,2,61,5121,6834,7,5,1.35,0.016666666666666666,,0,0

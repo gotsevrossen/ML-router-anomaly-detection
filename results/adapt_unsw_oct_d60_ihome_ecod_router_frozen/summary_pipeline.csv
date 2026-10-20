@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+adapt_unsw_oct_d60_ihome_ecod_router_frozen,frozen,ecod,12090,0.5659764865354872,0.6897137532566683,0.04175499819811731,0.043612751735551,0.5850632672896762,0.7097137532566683,90,139,0,0,12000,59,31,12090

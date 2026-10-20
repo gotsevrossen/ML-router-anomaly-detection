@@ -50,33 +50,6 @@ def _direction_masks(features: Sequence[str], directional: bool) -> tuple[np.nda
     return np.array([x != "down" for x in d]), np.array([x != "up" for x in d])
 
 
-class _Neutralizer:
-    """D61: replaces undefined feature values (window_features.undefined_mask) by the feature's bootstrap median
-    over defined values, so "nothing to compute this from" carries no evidence. Router state: one value per
-    feature, fixed at bootstrap."""
-
-    def __init__(self, features: Sequence[str]) -> None:
-        self.features = tuple(features)
-        self.med: np.ndarray | None = None
-
-    def fit(self, X: np.ndarray) -> None:
-        from rad.features.window_features import undefined_mask
-        mask = undefined_mask(X, self.features)
-        self.med = np.array([np.median(X[~mask[:, j], j]) if (~mask[:, j]).any() else 0.0
-                             for j in range(X.shape[1])])
-
-    def apply(self, X: np.ndarray) -> np.ndarray:
-        if self.med is None:
-            return X
-        from rad.features.window_features import undefined_mask
-        mask = undefined_mask(X, self.features)
-        if not mask.any():
-            return X
-        X = np.array(X, dtype=float, copy=True)
-        X[mask] = np.broadcast_to(self.med, X.shape)[mask]
-        return X
-
-
 def _quantize(v: np.ndarray) -> np.ndarray:
     """Round to int16 mantissas with one power-of-two exponent per feature (block floating point)."""
     e = np.ceil(np.log2(np.maximum(np.abs(v), 1e-300))) - 14  # leaves headroom inside int16
@@ -87,14 +60,13 @@ class RobustZDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, two_sided: bool = True,
                  tail_quantile: float = 1.0, tail_z: float = 3.0, top_k: int = 3, stats: str = "exact",
                  window: int = 2880, n_bins: int = 64, precision: str = "float32", min_scale: float = 0.0,
-                 monotone_scales: bool = False, directional: bool = False, neutral_undefined: bool = False) -> None:
+                 monotone_scales: bool = False, directional: bool = False) -> None:
         if stats not in ("exact", "sketch") or precision not in ("float32", "int16"):
             raise ValueError("stats must be exact|sketch and precision float32|int16")
         if not 0.5 <= tail_quantile <= 1.0 or top_k < 1:
             raise ValueError("need tail_quantile in [0.5, 1] and top_k >= 1")
         self.features = tuple(features)
         self._up, self._dn = _direction_masks(self.features, directional)  # D53
-        self._neutral = _Neutralizer(self.features) if neutral_undefined else None  # D61
         self.slog, self.two_sided = slog, two_sided
         self.tail_quantile, self.tail_z = tail_quantile, tail_z
         self.top_k = min(top_k, len(self.features))
@@ -165,13 +137,9 @@ class RobustZDetector:
     # -- Detector interface ---------------------------------------------------------------
 
     def matrix(self, xs: Sequence[dict[str, float]]) -> np.ndarray:
-        X = np.array([[x[f] for f in self.features] for x in xs], dtype=float).reshape(-1, len(self.features))
-        return self._neutral.apply(X) if self._neutral is not None else X
+        return np.array([[x[f] for f in self.features] for x in xs], dtype=float).reshape(-1, len(self.features))
 
     def bootstrap(self, xs: Sequence[dict[str, float]]) -> None:
-        if self._neutral is not None:  # D61: medians of defined values, before the imputation they drive
-            self._neutral.med = None
-            self._neutral.fit(self.matrix(xs))
         L = self._transform(self.matrix(xs))
         if self.stats == "exact":
             self.buffer.extend(L)

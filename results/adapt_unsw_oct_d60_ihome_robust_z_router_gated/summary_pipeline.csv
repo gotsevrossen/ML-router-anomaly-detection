@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+adapt_unsw_oct_d60_ihome_robust_z_router_gated,gated,robust_z,12090,0.46069085612097394,0.580944999211335,0.04175499819811731,0.043612751735551,0.4146306507644154,0.600944999211335,12030,149,0,0,60,6900,5130,12090

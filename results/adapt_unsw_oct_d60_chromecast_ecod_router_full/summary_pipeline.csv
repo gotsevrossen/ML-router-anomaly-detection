@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_suspected_attack,state_normal,state_suspected_benign_drift,final_rejected,final_committed,final_purged,final_quarantined
+adapt_unsw_oct_d60_chromecast_ecod_router_full,full,ecod,12091,0.6425956691029099,0.695518161987422,0.3153286037782149,0.3754092363797828,0.6530913994804732,0.715518161987422,493,384,0,0,346,11598,147,5710,2194,2021,2166

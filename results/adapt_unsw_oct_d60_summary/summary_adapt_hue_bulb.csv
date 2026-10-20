@@ -1,0 +1,7 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+hue_bulb,ecod_router,frozen,55.26093788768506,,0,,0,0,0,0,0,0,6,226,0,0,1.799,0.008601062484189223,,0,0
+hue_bulb,ecod_router,gated,55.26093788768506,,0,,0,0,5319,0,0,0,6,226,0,0,1.799,0.008601062484189223,5319.0,2346,0
+hue_bulb,ecod_router,full,55.26093788768506,,0,,0,0,665,2,0,0,6,226,0,0,1.799,0.008601062484189223,665.0,2356,4759
+hue_bulb,robust_z_router,frozen,62.40674882143744,,0,,0,0,0,0,0,0,31,231,0,0,1.799,0.007101191985797616,,0,0
+hue_bulb,robust_z_router,gated,62.40674882143744,,0,,0,0,8032,0,0,0,31,231,0,0,1.799,0.007101191985797616,8032.0,130,0
+hue_bulb,robust_z_router,full,62.40674882143744,,0,,0,0,661,2,0,0,31,231,0,0,1.799,0.007101191985797616,661.0,130,7356

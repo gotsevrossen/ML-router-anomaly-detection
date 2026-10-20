@@ -1,0 +1,7 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+samsung_camera,ecod_router,frozen,7.512226931855234,1.0,33,0.7351664254703328,691,0,0,0,437,71,16,0,7,2,2.605,0.0013076168682576005,,0,0
+samsung_camera,ecod_router,gated,7.512226931855234,1.0,33,0.7351664254703328,691,0,0,0,437,71,16,0,7,2,2.605,0.0013076168682576005,,1882,0
+samsung_camera,ecod_router,full,7.512226931855234,1.0,33,0.7351664254703328,691,0,0,0,437,71,16,0,7,2,2.605,0.0013076168682576005,,1882,0
+samsung_camera,robust_z_router,frozen,10.798826214541899,0.8484848484848485,33,0.7612156295224313,691,0,0,0,472,54,22,1,2,0,2.605,0.0,,0,0
+samsung_camera,robust_z_router,gated,10.798826214541899,0.8484848484848485,33,0.7612156295224313,691,0,985,0,432,94,20,3,2,0,2.604,0.0,985.0,4322,0
+samsung_camera,robust_z_router,full,10.798826214541899,0.8484848484848485,33,0.7612156295224313,691,0,983,0,432,94,20,3,2,0,2.604,0.0,983.0,4309,0

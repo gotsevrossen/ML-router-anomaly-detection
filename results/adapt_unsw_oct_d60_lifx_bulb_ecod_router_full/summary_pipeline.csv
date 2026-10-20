@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_purged,final_rejected,final_committed,final_blocked,final_quarantined
+adapt_unsw_oct_d60_lifx_bulb_ecod_router_full,full,ecod,12091,0.6244738627005482,0.6868549528589973,0.20659287958328987,0.2648231575631626,0.6064674139085008,0.7068549528589974,295,294,1,0,11796,294,1,2931,1629,1832,3215,2484

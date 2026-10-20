@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed,final_rejected,final_purged,final_quarantined
+adapt_unsw_d60_netatmo_camera_robust_z_router_gated,gated,robust_z,6957,0.4800657745119666,0.5809443502729044,0.3988670976178524,0.3988670976178524,0.580943983934747,0.6009443502729044,310,312,0,0,6647,251,59,1295,981,2876,1805

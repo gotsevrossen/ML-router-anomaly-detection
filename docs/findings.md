@@ -599,6 +599,20 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
 - **Remaining issue: false alarms under learning on replayed days.** On the Samsung streams, gated/full raised 29-475 false alarms per day when the replayed day with the bootstrap's most extreme period comes back (frozen: 0). This is the replay artefact (D58) amplified by learning: a rare legitimate period becomes rarer as normal data accumulates, so it alarms when it recurs. Real devices do not repeat a day exactly, but rare legitimate behaviour that recurs after weeks of learning will look the same, so this belongs with the RQ2 open questions (F34).
 - **Tried and rejected** (D56, D58): OR/AND ensembles of ECOD and RobustZ; gated daily adaptation as a drift remedy for unseen devices (October 12.2% -> 4.6% FPR, but June worse); a 2-day sliding memory; n-invariant ECOD tails. Kitsune's own KitNET baseline is not affected by the N-BaIoT timestamp leak (D56).
 
+### F42. ECOD meets the target with learning switched on (D60); unseen devices halve their false alarms but stay far from 0.1%. [Solid on UNSW June; October = held out]
+- **Router pipeline, UNSW June** (adapt_unsw_d60; strict dual alarm on min(learned, frozen)):
+
+  | Detector | Rule | Attacks caught | FPR | Attack windows learned |
+  |---|---|---|---|---|
+  | ECOD | frozen | 100% | 0.092% | 0 |
+  | ECOD | gated / full | **100%** | **0.092%** | **0** (4,575 benign learned) |
+  | RobustZ (`tail_quantile` 1.0) | frozen / gated / full | 95.3% | 0.208-0.211% | **0** |
+
+  With D60, ECOD meets the target (>= 99% of attacks, FPR < 0.1%) while adapting; before D60 learning cost 0.012-0.015 points of FPR (F41). RobustZ with learning-safe scales is at 95.3% / 0.21%: safe (no attack learned) but short of the target.
+- **Router pipeline, UNSW October, 5 unseen devices** (adapt_unsw_oct_d60, first pipeline run on these devices): ECOD frozen 100% / 12.2% -> gated with D60 98.9% / 6.3% (one Chromecast episode missed), 0 attack windows learned. Per device (gated): iHome 0.22%, LIFX 0.15%, Chromecast 0.91%, Hue 1.92%, Amazon Echo 28.2%. RobustZ: 96.7% / 57.0% frozen -> 33.3% gated.
+- **Rejected on June** (D60, D61): a persistent-channel margin for RobustZ; treating undefined shares and means as no evidence (worse on June for both models, though it halves RobustZ's October false alarms).
+- **What is left for unseen devices** is a behaviour shift after the October recording gap (the Echo) that 2 days of training cannot cover and the quarantine, by design, will not learn. RobustZ additionally reads silent windows as anomalous (D61).
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)

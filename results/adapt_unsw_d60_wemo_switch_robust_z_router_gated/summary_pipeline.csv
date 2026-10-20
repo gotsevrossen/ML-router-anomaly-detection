@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed,final_rejected,final_purged,final_quarantined
+adapt_unsw_d60_wemo_switch_robust_z_router_gated,gated,robust_z,6955,0.48696286377947184,0.5915774532401454,0.08819653823263478,0.10708806626160153,0.454668932294307,0.6115774532401456,376,361,0,0,6579,338,38,956,1056,3245,1698

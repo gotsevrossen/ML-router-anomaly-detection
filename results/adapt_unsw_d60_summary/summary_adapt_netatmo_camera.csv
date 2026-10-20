@@ -1,0 +1,7 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+netatmo_camera,ecod_router,frozen,0.0,1.0,15,0.7777777777777778,315,0,0,0,205,40,0,0,0,3,2.019,0.00030385900941962927,,0,0
+netatmo_camera,ecod_router,gated,0.0,1.0,15,0.7777777777777778,315,0,1469,0,205,40,0,0,0,3,2.019,0.00030385900941962927,1469.0,2618,0
+netatmo_camera,ecod_router,full,0.0,1.0,15,0.7777777777777778,315,0,1469,0,205,40,0,0,0,3,2.019,0.00030385900941962927,1469.0,2617,0
+netatmo_camera,robust_z_router,frozen,0.43755697356426615,1.0,15,0.9809523809523809,315,0,0,0,250,59,1,0,0,0,2.019,0.000151952590791673,,0,0
+netatmo_camera,robust_z_router,gated,0.43755697356426615,1.0,15,0.9809523809523809,315,0,1295,0,250,59,1,0,0,0,2.019,0.000151952590791673,1295.0,2876,0
+netatmo_camera,robust_z_router,full,0.43755697356426615,1.0,15,0.9809523809523809,315,0,1293,0,250,59,1,0,0,0,2.019,0.000151952590791673,1293.0,2874,0

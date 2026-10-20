@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected,final_committed,final_blocked,final_purged,final_quarantined
+adapt_unsw_oct_d60_hue_bulb_ecod_router_full,full,ecod,12091,0.6380025858720648,0.7152218299406596,0.016591688211019757,0.019005738881153738,0.6317419385430975,0.7352218299406597,232,262,2,0,11859,6,226,1803,665,4759,2356,2508

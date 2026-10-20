@@ -1,0 +1,7 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+wemo_switch,ecod_router,frozen,5.755572636433513,1.0,18,0.6904761904761905,378,0,0,0,232,29,13,0,8,3,2.641,0.0012322858903265558,,0,0
+wemo_switch,ecod_router,gated,5.755572636433513,1.0,18,0.6904761904761905,378,0,849,0,232,29,13,0,7,3,2.64,0.0012322858903265558,849.0,3269,0
+wemo_switch,ecod_router,full,5.755572636433513,1.0,18,0.6904761904761905,378,0,849,0,232,29,13,0,7,3,2.64,0.0012322858903265558,849.0,3254,0
+wemo_switch,robust_z_router,frozen,11.511145272867026,1.0,18,0.8888888888888888,378,0,0,0,299,37,25,1,15,0,2.641,0.0001543448062972681,,0,0
+wemo_switch,robust_z_router,gated,11.068408916218294,1.0,18,0.8888888888888888,378,0,956,0,299,37,24,1,15,0,2.64,0.00015432098765432098,956.0,3245,0
+wemo_switch,robust_z_router,full,11.068408916218294,1.0,18,0.8888888888888888,378,0,956,0,299,37,24,1,15,0,2.64,0.00015432098765432098,956.0,3245,0

@@ -149,8 +149,9 @@ Speed: about 13k frames/s on this laptop, so the roughly 760k-packet Kitsune Mir
 32. **2026-10-19.** Target >= 99% of attacks at FPR < 0.1% (D53, regress_i9): per-protocol packet counts, direction-aware ECOD/RobustZ, strict dual alarms. ECOD meets it on the UNSW June devices (100% / 0.091%), their later days (100% / 0.000%) and Mirai; it fails on the unseen October devices (12.2% FPR, behaviour shift) (F39).
 33. **2026-10-19.** Model-specific work (D54, D55, regress_i10): N-BaIoT's AfterImage jitter columns leak timestamps, and ECOD relied on them (86.7% -> 80.0% without; RobustZ unaffected at 88.8%). RobustZ with 99.5th-percentile scales on windows: UNSW June 96.4% / 0.081%, later days 100% / 0.002% (F40).
 34. **2026-10-19.** Improvements round (D56-D58): the strict dual alarm now runs in the router pipeline; ECOD there catches 100% of attacks at 0.092% FPR frozen and learns no attack window under gated/full; in the boiling-frog sweep no attack burst is missed. ECOD rebuilds batched (`refit_every`) and the poisoning sweep is resumable. Rejected: model ensembles, n-invariant tails, sliding memory (F41).
+35. **2026-10-20.** ECOD and RobustZ are the project's models (D59). Alarm on min(learned, frozen) (D60): ECOD meets the target with gated/full learning on UNSW June (100% / 0.092%, no attack learned); unseen October devices 12.2% -> 6.3% FPR. Undefined-as-neutral features tried and rejected (D61) (F42).
 
-Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F41).
+Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F42).
 
 ---
 

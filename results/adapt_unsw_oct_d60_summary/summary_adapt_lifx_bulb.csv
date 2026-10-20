@@ -1,0 +1,7 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+lifx_bulb,ecod_router,frozen,4.175692963752666,1.0,13,0.8789808917197452,314,0,0,0,0,276,0,17,1,2,2.2,0.0013665869490946361,,0,0
+lifx_bulb,ecod_router,gated,4.175692963752666,1.0,13,0.8757961783439491,314,0,5111,0,0,275,0,17,1,2,1.932,0.0013665869490946361,5111.0,2931,0
+lifx_bulb,ecod_router,full,4.175692963752666,1.0,13,0.8757961783439491,314,0,1832,1,0,275,0,17,1,2,1.932,0.0013665869490946361,1832.0,2931,3215
+lifx_bulb,robust_z_router,frozen,2843.6469083155653,1.0,13,1.0,314,0,0,0,0,314,1136,10441,5,47,2.2,0.006756756756756757,,0,0
+lifx_bulb,robust_z_router,gated,877.878038379531,1.0,13,0.9522292993630573,314,0,5648,0,0,299,334,3240,3,14,1.358,0.000858790332474543,5648.0,3070,0
+lifx_bulb,robust_z_router,full,877.878038379531,1.0,13,0.9522292993630573,314,0,2095,1,0,299,334,3240,3,14,1.358,0.000858790332474543,2095.0,2721,2720

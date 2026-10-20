@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged,final_quarantined
+adapt_unsw_d60_tplink_plug_ecod_router_full,full,ecod,6951,0.5929696614552149,0.6867403373489109,0.01848135209294511,0.025749598157076836,0.6668484776911455,0.706740337348911,395,448,0,0,6556,142,253,1315,1298,3574,764

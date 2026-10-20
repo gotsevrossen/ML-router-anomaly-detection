@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+adapt_unsw_oct_d60_lifx_bulb_robust_z_router_frozen,frozen,robust_z,12091,0.5809458574779731,0.5809458574779732,0.20659287958328987,0.2648231575631626,0.46762990932674986,0.6009458574779732,11943,294,0,0,148,10802,1141,12091

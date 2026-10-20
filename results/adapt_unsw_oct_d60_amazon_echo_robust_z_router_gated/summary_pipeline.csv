@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_suspected_attack,state_normal,state_suspected_benign_drift,final_rejected,final_purged,final_committed,final_quarantined
+adapt_unsw_oct_d60_amazon_echo_robust_z_router_gated,gated,robust_z,12090,0.5455992387593407,0.5852322477204048,0.18479895415044767,0.18896279096900867,0.4589474115924692,0.6052322477204048,4296,473,0,0,2213,7794,2083,901,3284,5101,2804

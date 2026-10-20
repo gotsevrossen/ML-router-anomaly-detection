@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_committed,final_rejected,final_purged,final_quarantined
+adapt_unsw_d60_wemo_switch_ecod_router_gated,gated,ecod,6955,0.6489792445127882,0.6933880924093584,0.08819653823263478,0.10708806626160153,0.6389194133089612,0.7133880924093585,284,381,0,0,6671,252,32,849,1177,3269,1660

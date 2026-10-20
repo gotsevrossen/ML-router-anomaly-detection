@@ -1,0 +1,7 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+amazon_echo,ecod_router,frozen,1615.3612935826175,1.0,7,1.0,188,0,0,0,139,49,3819,2841,16,6,2.474,0.004219409282700422,,0,0
+amazon_echo,ecod_router,gated,812.5315816068721,1.0,7,1.0,188,0,2963,0,139,49,2050,1300,16,6,2.472,0.002580947911778508,2963.0,1414,0
+amazon_echo,ecod_router,full,812.5315816068721,1.0,7,1.0,188,0,812,1,139,49,2050,1300,16,6,2.472,0.002580947911778508,812.0,1414,1826
+amazon_echo,robust_z_router,frozen,2431.531076301162,1.0,7,1.0,188,0,0,0,139,49,5491,4534,19,9,2.474,0.0048674959437533805,,0,0
+amazon_echo,robust_z_router,gated,989.5907023749368,1.0,7,1.0,188,0,5101,0,100,88,2095,1985,18,10,2.474,0.0014113420579933281,5101.0,3284,0
+amazon_echo,robust_z_router,full,2285.032844871147,1.0,7,1.0,188,0,1872,1,100,88,4864,4557,18,10,2.474,0.0040766408479412965,1872.0,3293,3208

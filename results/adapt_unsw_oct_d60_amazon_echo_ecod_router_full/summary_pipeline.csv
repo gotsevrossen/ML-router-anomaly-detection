@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_suspected_attack,state_normal,state_suspected_benign_drift,final_rejected,final_purged,final_committed,final_blocked,final_quarantined
+adapt_unsw_oct_d60_amazon_echo_ecod_router_full,full,ecod,12090,0.6137244238211044,0.6929616040003057,0.18479895415044767,0.18896279096900867,0.6029476416380288,0.7129616040003057,3560,475,1,0,2205,8530,1355,6074,1414,812,1826,1964
