@@ -11,11 +11,12 @@ Update rules (the Phase 3 ablation arms):
 Output record per window (CLAUDE.md §5 2d), plus a few fields for analysis:
   {"t", "device", "score", "state", "alert", "threat_score", "top_features",
    "update_decision", "drift_notice", "raw_alert", "fast_score", "anchor_score",
-   "divergence", "released"}
+   "divergence", "released", "alarm_score"}
 """
 
 from __future__ import annotations
 
+import copy
 import logging
 from collections import deque
 from dataclasses import dataclass, field
@@ -49,7 +50,8 @@ class PipelineConfig:
     alert_n: int = 3
     top_k: int = 3
     profile_half_life_days: float = 1.0
-    # D53: {"mode": "k_of_n"} (alert_k/alert_n above) or {"mode": "strict_dual", "k": 8, "margin": 0.02}
+    # D53: {"mode": "k_of_n"} (alert_k/alert_n above) or {"mode": "strict_dual", "k": 8, "margin": 0.02};
+    # D60: "score": "learned" (default) or "min_reference" (learned and frozen bootstrap model must agree)
     alarm: dict[str, Any] = field(default_factory=lambda: {"mode": "k_of_n"})
 
     def __post_init__(self) -> None:
@@ -59,6 +61,10 @@ class PipelineConfig:
             raise ValueError("need 1 <= alert_k <= alert_n")
         if self.alarm.get("mode", "k_of_n") not in ("k_of_n", "strict_dual"):
             raise ValueError(f"alarm mode must be k_of_n or strict_dual, got {self.alarm.get('mode')!r}")
+        if self.alarm.get("score", "learned") not in ("learned", "min_reference"):
+            raise ValueError(f"alarm score must be learned or min_reference, got {self.alarm.get('score')!r}")
+        if self.alarm.get("score") == "min_reference" and self.alarm.get("mode") != "strict_dual":
+            raise ValueError("alarm score min_reference is implemented for the strict_dual alarm only")
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "PipelineConfig":
@@ -112,6 +118,12 @@ class DevicePipeline:
         if self.fast is None:
             self.fast = detector_factory()
             self.fast.bootstrap(list(bootstrap_rows))
+        # D60: alarm only when the learned model AND a frozen copy of the bootstrapped model both find the window
+        # anomalous (min of the two scores). Learning may widen "normal" but never make alarms stricter than at
+        # bootstrap (D44's principle, applied to the alarm). Gating is unchanged (it stays conservative).
+        self.reference: Detector | None = None
+        if cfg.alarm.get("score", "learned") == "min_reference":
+            self.reference = copy.deepcopy(self.fast)
         self.robust = RobustProfile(self.features, bootstrap_rows, cfg.profile_half_life_days)
         self.disamb = DisambiguationConfig.from_dict(cfg.disambiguation)
         self.recent: deque[bool] = deque(maxlen=cfg.alert_n)
@@ -166,8 +178,11 @@ class DevicePipeline:
 
         raw_alert = score >= self.tau_alert
         self.recent.append(raw_alert)
+        alarm_score = score
+        if self.reference is not None:  # D60: the learned model and the frozen reference must agree
+            alarm_score = min(float(fast_score), float(self.reference.score_one(x)))
         if self.alarm is not None:  # D53: strict persistence OR a raw window beyond everything benign seen
-            alert = self.alarm.update(t, score)[0]
+            alert = self.alarm.update(t, alarm_score)[0]
         else:
             alert = sum(self.recent) >= self.cfg.alert_k
         persistence = sum(self.recent) / self.cfg.alert_n
@@ -197,4 +212,5 @@ class DevicePipeline:
             "anchor_score": None if anchor_score is None else round(float(anchor_score), 6),
             "divergence": anchor_score is not None and anchor_score >= self.tau_alert > fast_score,
             "released": released,
+            "alarm_score": round(float(alarm_score), 6),
         }

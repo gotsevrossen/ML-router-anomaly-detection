@@ -18,7 +18,7 @@ from test_baseline import ATTACK_FROM, N_WINDOWS, _device_stream
 W = 30.0
 FEATS = ["bytes_out", "n_new_ext_dst_ips"]
 RECORD_KEYS = {"t", "device", "score", "state", "alert", "threat_score", "top_features", "update_decision",
-               "drift_notice", "raw_alert", "fast_score", "anchor_score", "divergence", "released"}
+               "drift_notice", "raw_alert", "fast_score", "anchor_score", "divergence", "released", "alarm_score"}
 
 
 class Scripted:

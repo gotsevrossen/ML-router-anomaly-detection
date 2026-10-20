@@ -64,3 +64,26 @@ def test_pipeline_end_to_end_with_strict_dual(tmp_path, rule):
     # 40 toy validation windows put the persistent threshold at the edge of normal: allow one benign alarm.
     assert df.loc[~attack, "alert"].sum() <= 1
     assert {"t_per", "t_raw"} <= set(res["summary"])
+
+
+def test_min_reference_alarm_is_a_subset_of_learned_alarms(tmp_path):
+    """D60: with min(learned, frozen reference), learning can only remove alarms, and attacks still alarm."""
+    recs, _ = _device_stream()
+    packets = tmp_path / "dev.parquet"
+    pq.write_table(records_to_table(recs), packets)
+    out = {}
+    for score in ("learned", "min_reference"):
+        cfg = {"experiment": f"toy_ref_{score}", "out_dir": str(tmp_path / "results"), "device": "toy",
+               "packets": str(packets), "features": {"exclude": ["tod_sin", "tod_cos", "is_weekend"]},
+               "detector": {"name": "ecod", "params": {"stats": "sketch", "directional": True}},
+               "split": {"bootstrap_windows": 60, "validation_windows": 40},
+               "pipeline": {"update_rule": "gated", "quarantine": {"t_delay_s": 300, "purge_k": 3},
+                            "alarm": {"mode": "strict_dual", "k": 4, "margin": 0.0, "score": score}}}
+        out[score] = run_pipeline(cfg)["records"]
+    learned, ref = out["learned"], out["min_reference"]
+    assert not (ref["alert"] & ~learned["alert"]).any()
+    assert (ref["alarm_score"] <= learned["score"] + 1e-9).all()
+    attack = ref["t"] >= ref["t"].iloc[0] + (ATTACK_FROM - 100) * W
+    assert ref.loc[attack, "alert"].iloc[3:].all()
+    with pytest.raises(ValueError):
+        PipelineConfig(alarm={"mode": "k_of_n", "score": "min_reference"})
