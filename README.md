@@ -181,7 +181,7 @@ Findings for the paper: [docs/findings.md](docs/findings.md) (F1–F41).
 | 21 | ~25 features | 39 (D31, D34, D37 appended) | Spoofed floods, ARP spoofing and LAN attacks were invisible to destination-only features. |
 | 22 | Drift = Σ_j \|Δmedian_j\| / IQR_j | Option: mean_j min(\|Δmedian_j\| / IQR_j, 3) (D43); budgets calibrated on benign days (D42) | The sum is dominated by near-constant features (budgets 0.03–475 across devices). |
 | 23 | Quarantine: commit only if no alert during the stay | Also a k-purge variant (D41) | With ~1 false alarm/day and a 24 h delay, the strict rule commits almost nothing (F30). |
-| 24 | Primary model HST | HST kept, but RobustZ is the most stable model (F15, F27) | HST is weak on N-BaIoT and UNSW. Decision for the paper pending. |
+| 24 | Primary model HST | **ECOD and RobustZ are the project's models; HST is a baseline only** (D59, 2026-10-19) | HST was weakest on every dataset except Mirai and let attacks into the model under gated/full (F15, F27, F36). ECOD meets the target on the UNSW June devices and Mirai (F39, F41); RobustZ is smallest and best on N-BaIoT (F40). |
 
 ---
 
