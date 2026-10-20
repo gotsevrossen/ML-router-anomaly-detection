@@ -75,3 +75,21 @@ def test_ecod_refit_every_batches_learning():
     assert every1.score_one(probe) == pytest.approx(every5.score_one(probe))  # same data after 10
     with pytest.raises(ValueError):
         build_detector("ecod", feats, {"type": "ecod", "refit_every": 0})
+
+
+def test_ecod_fixed_resolution_keeps_novelty_score_constant_while_learning():
+    """D58: learning more ordinary windows must not make a never-seen value look more anomalous."""
+    rng = np.random.default_rng(3)
+    feats = ["pkts_in", "bytes_in"]
+    mk = lambda n: [{"pkts_in": float(v), "bytes_in": float(v * 100)} for v in rng.integers(50, 150, n)]  # noqa: E731
+    boot, more = mk(500), mk(4500)
+    novel = {"pkts_in": 1000.0, "bytes_in": 100_000.0}
+    plain = build_detector("ecod", feats, {"type": "ecod", "stats": "sketch"})
+    fixed = build_detector("ecod", feats, {"type": "ecod", "stats": "sketch", "fixed_resolution": True})
+    plain.bootstrap(boot); fixed.bootstrap(boot)
+    assert plain.score_one(novel) == fixed.score_one(novel)  # identical before any learning
+    s0 = fixed.score_one(novel)
+    for x in more:
+        plain.learn_one(x); fixed.learn_one(x)
+    assert plain.score_one(novel) > s0 + 0.01  # 10x the data: "never seen" scores log(5001) instead of log(501)
+    assert fixed.score_one(novel) == pytest.approx(s0, abs=0.02)
