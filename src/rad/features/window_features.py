@@ -130,6 +130,42 @@ _UP = ("bytes_out", "bytes_in", "pkts_out", "pkts_in", "n_ext_dst_ips", "n_new_e
 _DOWN = ("iat_mean", "top3_port_frac")
 FEATURE_DIRECTIONS: dict[str, str] = {f: "up" if f in _UP else "down" if f in _DOWN else "both" for f in FEATURE_NAMES}
 
+# D61: features that are undefined (written as 0) when the window has nothing to compute them from. A silent
+# window is not "0% TCP" or "packets of size 0"; detectors with `neutral_undefined` treat these as no evidence.
+#   no packets            shares, means and variances over packets, and inter-arrival times
+#   no IP packets         protocol shares
+#   no TCP/UDP packets    share on the top-3 service ports
+#   conn_dur_mean == 0    no connection closed in the window
+_NEEDS_PACKETS = ("out_byte_frac", "pkt_size_mean", "pkt_size_var", "iat_mean", "iat_var", "lan_byte_frac")
+_NEEDS_IP = ("tcp_frac", "udp_frac", "icmp_frac")
+_NEEDS_SERVICE = ("top3_port_frac",)
+
+
+def undefined_mask(X, features) -> "np.ndarray":
+    """Boolean matrix (rows x features): True where a feature is undefined in that window (D61).
+
+    Needs the count columns (pkts_in/out, tcp/udp/icmp_pkts) among `features`; features whose condition
+    cannot be evaluated are treated as defined (e.g. N-BaIoT columns).
+    """
+    import numpy as np
+    X = np.asarray(X, dtype=float)
+    col = {f: j for j, f in enumerate(features)}
+    mask = np.zeros(X.shape, dtype=bool)
+    get = lambda *names: [X[:, col[n]] for n in names] if all(n in col for n in names) else None  # noqa: E731
+    pk = get("pkts_in", "pkts_out")
+    ip = get("tcp_pkts", "udp_pkts", "icmp_pkts")
+    for f in features:
+        j = col[f]
+        if f in _NEEDS_PACKETS and pk is not None:
+            mask[:, j] = (pk[0] + pk[1]) == 0
+        elif f in _NEEDS_IP and ip is not None:
+            mask[:, j] = (ip[0] + ip[1] + ip[2]) == 0
+        elif f in _NEEDS_SERVICE and ip is not None:
+            mask[:, j] = (ip[0] + ip[1]) == 0
+        elif f == "conn_dur_mean":
+            mask[:, j] = X[:, j] == 0
+    return mask
+
 IP_PROTO_TCP, IP_PROTO_UDP, IP_PROTO_ICMP, IP_PROTO_ICMP6 = 6, 17, 1, 58
 _SECONDS_PER_DAY = 86_400
 _EPOCH_WEEKDAY = 3  # 1970-01-01 was a Thursday (Monday = 0)

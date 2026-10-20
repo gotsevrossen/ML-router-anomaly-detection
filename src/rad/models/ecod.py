@@ -33,14 +33,14 @@ from typing import Sequence
 
 import numpy as np
 
-from rad.models.robust_z import _direction_masks, _slog
+from rad.models.robust_z import _direction_masks, _Neutralizer, _slog
 
 
 class ECODTailDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, top_k: int = 3, tail_z: float = 3.0,
                  min_scale: float = 0.05, window: int = 50_000, stats: str = "exact", max_distinct: int = 256,
                  n_quantiles: int = 257, tail_keep: int = 64, directional: bool = False,
-                 refit_every: int = 1) -> None:
+                 refit_every: int = 1, neutral_undefined: bool = False) -> None:
         if stats not in ("exact", "sketch"):
             raise ValueError("stats must be exact|sketch")
         self.stats, self.max_distinct, self.n_quantiles, self.tail_keep = stats, max_distinct, n_quantiles, tail_keep
@@ -49,6 +49,7 @@ class ECODTailDetector:
         self.features = tuple(features)
         # D53: only the attack-like side of each feature counts (FEATURE_DIRECTIONS; unknown features: both).
         self._up, self._dn = _direction_masks(self.features, directional)
+        self._neutral = _Neutralizer(self.features) if neutral_undefined else None  # D61
         self.slog = slog
         self.top_k = min(top_k, len(self.features))
         self.tail_z, self.min_scale = tail_z, min_scale
@@ -64,7 +65,8 @@ class ECODTailDetector:
         self._pending = 0
 
     def matrix(self, xs: Sequence[dict[str, float]]) -> np.ndarray:
-        return np.array([[x[f] for f in self.features] for x in xs], dtype=float)
+        X = np.array([[x[f] for f in self.features] for x in xs], dtype=float).reshape(-1, len(self.features))
+        return self._neutral.apply(X) if self._neutral is not None else X
 
     def _transform(self, m: np.ndarray) -> np.ndarray:
         return _slog(m) if self.slog else m
@@ -85,6 +87,9 @@ class ECODTailDetector:
         self._stale = False
 
     def bootstrap(self, rows: Sequence[dict[str, float]]) -> None:
+        if self._neutral is not None:  # D61: medians of defined values, before the imputation they drive
+            self._neutral.med = None
+            self._neutral.fit(self.matrix(rows))
         for v in self._transform(self.matrix(rows)):
             self.buffer.append(v)
         self._fit()

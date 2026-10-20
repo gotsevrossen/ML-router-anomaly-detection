@@ -75,3 +75,40 @@ def test_ecod_refit_every_batches_learning():
     assert every1.score_one(probe) == pytest.approx(every5.score_one(probe))  # same data after 10
     with pytest.raises(ValueError):
         build_detector("ecod", feats, {"type": "ecod", "refit_every": 0})
+
+
+def test_undefined_mask_rules():
+    """D61: shares/means of an empty window, protocol shares without IP packets, service share without
+    TCP/UDP, and conn_dur_mean without closed connections are undefined; nothing else is."""
+    from rad.features.window_features import undefined_mask
+    feats = ["pkts_in", "pkts_out", "tcp_pkts", "udp_pkts", "icmp_pkts", "pkt_size_mean", "tcp_frac",
+             "top3_port_frac", "conn_dur_mean", "bytes_in"]
+    X = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],       # empty window
+                  [3, 2, 0, 0, 1, 80, 0, 0, 0, 240],    # ICMP only: tcp_frac defined (0), top3 undefined
+                  [3, 2, 4, 1, 0, 80, 0.8, 1, 2.5, 240]], dtype=float)
+    m = undefined_mask(X, feats)
+    assert m[0].tolist() == [False] * 5 + [True, True, True, True, False]
+    assert m[1].tolist() == [False] * 5 + [False, False, True, True, False]
+    assert not m[2].any()
+    assert not undefined_mask(X[:, :5], feats[:5]).any()  # count columns themselves are always defined
+
+
+@pytest.mark.parametrize("name,params", [("ecod", {"type": "ecod", "stats": "sketch"}),
+                                         ("robust_z", {"type": "robust_z"})])
+def test_neutral_undefined_makes_silence_carry_no_evidence(name, params):
+    rng = np.random.default_rng(4)
+    feats = ["pkts_in", "pkts_out", "tcp_pkts", "udp_pkts", "icmp_pkts", "tcp_frac", "top3_port_frac", "pkt_size_mean"]
+    def busy(n):
+        tcp = rng.integers(20, 40, n)
+        return [{"pkts_in": float(t), "pkts_out": float(t), "tcp_pkts": float(2 * t), "udp_pkts": 0.0,
+                 "icmp_pkts": 0.0, "tcp_frac": 1.0, "top3_port_frac": 1.0, "pkt_size_mean": float(s)}
+                for t, s in zip(tcp, rng.uniform(100, 200, n))]
+    rows = busy(2000)
+    silent = {f: 0.0 for f in feats}
+    flood = {**rows[0], "pkts_in": 5000.0, "udp_pkts": 5000.0, "tcp_frac": 0.02}
+    plain = build_detector(name, feats, {**params, "directional": True})
+    neutral = build_detector(name, feats, {**params, "directional": True, "neutral_undefined": True})
+    plain.bootstrap(rows); neutral.bootstrap(rows)
+    assert neutral.score_one(silent) < plain.score_one(silent)
+    assert neutral.score_one(silent) <= max(neutral.score_many(rows[:200])) + 1e-9  # silence looks ordinary
+    assert neutral.score_one(flood) > max(neutral.score_many(rows[:200]))  # a flood still stands out
