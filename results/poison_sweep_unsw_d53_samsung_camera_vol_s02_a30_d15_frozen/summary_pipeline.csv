@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_rejected
+poison_sweep_unsw_d53_samsung_camera_vol_s02_a30_d15_frozen,frozen,ecod,46080,0.6483861333024659,0.6868549528589973,0.5139042089414606,0.8226928466069937,0.6589417197360629,0.7068549528589974,495,191,0,0,45585,369,126,46080

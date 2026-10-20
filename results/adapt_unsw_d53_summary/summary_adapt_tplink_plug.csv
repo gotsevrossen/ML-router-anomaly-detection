@@ -1,0 +1,9 @@
+device,detector,rule,false_alarms_per_day,event_detection,n_events,window_detection,attack_windows,attack_committed,benign_committed,drift_notices,alerts_attack_as_attack,alerts_attack_as_drift,alerts_benign_as_attack,alerts_benign_as_drift,alerts_guard_as_attack,alerts_guard_as_drift,quiet_top_z_p50,quiet_top_z_gt3,final_committed,final_purged,final_blocked
+tplink_plug,ecod_router,frozen,0.0,1.0,21,0.891156462585034,441,0,0,0,252,141,0,0,1,1,2.743,0.0035792094615624027,,0,0
+tplink_plug,ecod_router,naive,0.0,0.2857142857142857,21,0.13378684807256236,441,441,6510,0,48,11,0,0,0,0,2.743,0.0012449424214130097,6951.0,0,0
+tplink_plug,ecod_router,gated,0.0,1.0,21,0.9410430839002267,441,0,1316,0,274,141,0,0,1,1,2.743,0.0035792094615624027,1316.0,3588,0
+tplink_plug,ecod_router,full,0.0,1.0,21,0.9410430839002267,441,0,1315,0,274,141,0,0,1,1,2.743,0.0035792094615624027,1315.0,3574,0
+tplink_plug,robust_z_router,frozen,0.0,0.8571428571428571,21,0.6938775510204082,441,0,0,0,228,78,0,0,0,0,2.743,0.0035792094615624027,,0,0
+tplink_plug,robust_z_router,naive,0.0,0.23809523809523808,21,0.12698412698412698,441,441,6510,0,34,22,0,0,0,0,2.743,0.0012449424214130097,6951.0,0,0
+tplink_plug,robust_z_router,gated,0.0,0.8571428571428571,21,0.6938775510204082,441,0,1705,0,228,78,0,0,0,0,2.743,0.0035792094615624027,1705.0,3107,0
+tplink_plug,robust_z_router,full,0.0,0.8571428571428571,21,0.6938775510204082,441,0,1705,0,228,78,0,0,0,0,2.743,0.0035792094615624027,1705.0,3107,0

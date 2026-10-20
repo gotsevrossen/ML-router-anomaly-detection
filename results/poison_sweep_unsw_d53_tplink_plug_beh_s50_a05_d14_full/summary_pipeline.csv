@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,final_purged,final_rejected,final_committed,final_blocked,final_quarantined
+poison_sweep_unsw_d53_tplink_plug_beh_s50_a05_d14_full,full,ecod,43197,0.5928864303045582,0.6868511551021446,0.016882546848096827,0.024368661873876967,0.6670001010741596,0.7068511551021446,1080,3608,1,0,42117,1080,35983,6567,291,283,73

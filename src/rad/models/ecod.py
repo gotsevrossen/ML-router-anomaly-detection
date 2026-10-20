@@ -40,7 +40,7 @@ class ECODTailDetector:
     def __init__(self, features: Sequence[str], slog: bool = True, top_k: int = 3, tail_z: float = 3.0,
                  min_scale: float = 0.05, window: int = 50_000, stats: str = "exact", max_distinct: int = 256,
                  n_quantiles: int = 257, tail_keep: int = 64, directional: bool = False,
-                 refit_every: int = 1, fixed_resolution: bool = False) -> None:
+                 refit_every: int = 1) -> None:
         if stats not in ("exact", "sketch"):
             raise ValueError("stats must be exact|sketch")
         self.stats, self.max_distinct, self.n_quantiles, self.tail_keep = stats, max_distinct, n_quantiles, tail_keep
@@ -62,11 +62,6 @@ class ECODTailDetector:
             raise ValueError("refit_every must be >= 1")
         self.refit_every = int(refit_every)
         self._pending = 0
-        # D58: tail probabilities on the bootstrap's size, so learning does not make the model stricter. Without
-        # it, "never seen" scores log(n + 1), which grows as committed windows accumulate (5,760 -> ~40,000 over
-        # 14 days) while the alarm thresholds stay calibrated at bootstrap.
-        self.fixed_resolution = fixed_resolution
-        self.n_ref: int | None = None
 
     def matrix(self, xs: Sequence[dict[str, float]]) -> np.ndarray:
         return np.array([[x[f] for f in self.features] for x in xs], dtype=float)
@@ -93,8 +88,6 @@ class ECODTailDetector:
         for v in self._transform(self.matrix(rows)):
             self.buffer.append(v)
         self._fit()
-        if self.fixed_resolution:
-            self.n_ref = self.n
 
     def _sketch_col(self, col: np.ndarray) -> tuple:
         vals, counts = np.unique(col, return_counts=True)
@@ -132,13 +125,11 @@ class ECODTailDetector:
             self._fit()
         L = self._transform(np.asarray(X, dtype=float))
         o = np.empty_like(L)
-        n_eff = float(self.n_ref) if self.n_ref is not None else float(self.n)
-        rescale = n_eff / self.n  # counts on the reference size (D58); 1 without fixed_resolution
         for j in range(L.shape[1]):
             ge, le = self._tail_counts(j, L[:, j])
             # max of the two one-sided tails = the two-sided min-count tail; a masked side contributes 0
-            o_up = -np.log((ge * rescale + 1.0) / (n_eff + 1.0)) if self._up[j] else 0.0
-            o_dn = -np.log((le * rescale + 1.0) / (n_eff + 1.0)) if self._dn[j] else 0.0
+            o_up = -np.log((ge + 1.0) / (self.n + 1.0)) if self._up[j] else 0.0
+            o_dn = -np.log((le + 1.0) / (self.n + 1.0)) if self._dn[j] else 0.0
             o[:, j] = np.maximum(o_up, o_dn)
         o += (self._up * np.maximum(L - self.hi, 0.0) / self.s_up
               + self._dn * np.maximum(self.lo - L, 0.0) / self.s_dn)

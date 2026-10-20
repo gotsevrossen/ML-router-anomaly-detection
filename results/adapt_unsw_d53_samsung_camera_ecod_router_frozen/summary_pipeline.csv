@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_attack,state_suspected_benign_drift,final_rejected
+adapt_unsw_d53_samsung_camera_ecod_router_frozen,frozen,ecod,6957,0.6481811029099612,0.6867403373489109,0.5138964505774708,0.8140804849646595,0.658765092516885,0.706740337348911,533,499,0,0,6424,460,73,6957

@@ -582,6 +582,23 @@ The paper's novelty claims (RQ2 to RQ4) depend on fixing these. They are design 
 
   (attack episodes caught / test FPR). RobustZ's remaining 4 June misses are 1 pkt/s floods on the camera that streams UDP: within range by distance, rare by rank. That is ECOD's strength, so the two models are complementary.
 
+### F41. The improved ECOD in the router pipeline: target met frozen, attacks never learned, every poisoning burst caught (D56-D58). [Solid on UNSW June; RQ3 on 2 devices, replayed days]
+- **Router pipeline on real attack days** (adapt_unsw_d53: 5 UNSW June devices, streaming extractor with the profile cache, strict dual alarm D56):
+
+  | Detector | Rule | Attacks caught | FPR | Attack windows learned | F36 (i8 models, 2-of-3) |
+  |---|---|---|---|---|---|
+  | ECOD | frozen | **100%** | **0.092%** | 0 | 79.1%, 0.130% |
+  | ECOD | gated / full | **100%** | 0.104% / 0.107% | **0** | 83.3%, 0.130% |
+  | ECOD | naive | 57.9% | 0.107% | 2,328 | 19.1% |
+  | RobustZ (`tail_quantile` 0.995) | frozen | 96.3% | 0.082% | 0 | 83.6%, 0.146% |
+  | RobustZ (`tail_quantile` 0.995) | gated / full | 89.0% / 93.3% | 0.196% | **5** | 83.6%, 0.152%, 0 learned |
+
+  ECOD meets the target (>= 99% of attacks, FPR < 0.1%) end to end when frozen. Learning costs about 0.01 points of FPR (one device, Netatmo, 1.75 alarms/day) and still learns no attack window. RobustZ's 99.5th-percentile scales should not be used with learning (D55 amendment).
+- **RQ3 re-check** (poison_sweep_unsw_d53: ECOD, strict dual alarm, the D51 grid of 2 devices x 4 chaff schedules x 5 launch days x 4 rules, 160 runs): with frozen, gated and full **no attack burst was missed at any launch day** (event FNR 0 everywhere). That includes the Samsung volumetric flood, which RobustZ missed in F37 (96-100%); the per-protocol counts see it. Gated and full learned up to 1,687 quiet chaff windows without losing the attack. Naive missed 38-100% of bursts.
+- *Window FNR is not the right RQ3 metric with strict persistence:* bursts last 10 windows and the 8-window persistent channel fires from the 8th, so a fully caught burst has window FNR 0.7. Event FNR (bursts caught) is what F41 reports.
+- **Remaining issue: false alarms under learning on replayed days.** On the Samsung streams, gated/full raised 29-475 false alarms per day when the replayed day with the bootstrap's most extreme period comes back (frozen: 0). This is the replay artefact (D58) amplified by learning: a rare legitimate period becomes rarer as normal data accumulates, so it alarms when it recurs. Real devices do not repeat a day exactly, but rare legitimate behaviour that recurs after weeks of learning will look the same, so this belongs with the RQ2 open questions (F34).
+- **Tried and rejected** (D56, D58): OR/AND ensembles of ECOD and RobustZ; gated daily adaptation as a drift remedy for unseen devices (October 12.2% -> 4.6% FPR, but June worse); a 2-day sliding memory; n-invariant ECOD tails. Kitsune's own KitNET baseline is not affected by the N-BaIoT timestamp leak (D56).
+
 ---
 
 ## 3. Methodological lessons (bugs that would have invalidated results)

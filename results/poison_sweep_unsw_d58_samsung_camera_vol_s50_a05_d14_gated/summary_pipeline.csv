@@ -1,0 +1,2 @@
+experiment,update_rule,detector,live_windows,tau_admit,tau_alert,b_daily,b_total,t_per,t_raw,alerts,raw_alerts,drift_notices,divergence,state_normal,state_suspected_benign_drift,state_suspected_attack,final_committed,final_rejected,final_purged
+poison_sweep_unsw_d58_samsung_camera_vol_s50_a05_d14_gated,gated,ecod,43200,0.6483861333024659,0.6868549528589973,0.5139042089414606,0.8226928466069937,0.6589417197360629,0.7068549528589974,8054,2682,0,0,35146,6273,1781,8029,12381,22790

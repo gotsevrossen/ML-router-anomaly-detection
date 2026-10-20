@@ -1,0 +1,25 @@
+# adapt_unsw_d53_tplink_plug_ecod_router_full
+
+| key | value |
+|---|---|
+| experiment | adapt_unsw_d53_tplink_plug_ecod_router_full |
+| update_rule | full |
+| detector | ecod |
+| live_windows | 6951 |
+| tau_admit | 0.593 |
+| tau_alert | 0.6867 |
+| b_daily | 0.01848 |
+| b_total | 0.02575 |
+| t_per | 0.6668 |
+| t_raw | 0.7067 |
+| alerts | 417 |
+| raw_alerts | 448 |
+| drift_notices | 0 |
+| divergence | 0 |
+| state_normal | 6534 |
+| state_suspected_benign_drift | 142 |
+| state_suspected_attack | 275 |
+| final_committed | 1315 |
+| final_rejected | 1298 |
+| final_purged | 3574 |
+| final_quarantined | 764 |
